@@ -1,0 +1,277 @@
+{
+  "id": "l16",
+  "title": "生成模型",
+  "subtitle": "Generative Models",
+  "summary": "本讲介绍深度生成模型：目标是学习一个 $p_{model}(x)$ 去逼近真实数据分布 $p_{data}(x)$，从而采样生成新样本。重点覆盖判别式与生成式之分、自编码器(AE)、变分自编码器(VAE，含 ELBO 与重参数化)、生成对抗网络(GAN，$\\min_G\\max_D V(D,G)$)及其变体(DCGAN/CGAN/CycleGAN)、扩散模型(前向加噪/反向去噪)与自回归生成。",
+  "knowledgePoints": [
+    {
+      "title": "判别式模型 vs 生成式模型",
+      "content": "机器学习模型按建模目标可分两大类：\n\n- **判别式模型 (Discriminative)**：学习条件分布 $p(y\\mid x)$ 或直接学习决策边界，回答“这张图是男是女”，关注**如何把输入分到正确类别**。例如逻辑回归、SVM、普通分类 CNN。\n- **生成式模型 (Generative)**：学习数据本身的分布 $p(x)$（或联合分布 $p(x,y)$），关注**数据是怎么产生的**，因此可以**采样合成新样本**。例如 GAN、VAE、Diffusion。\n\n> 类比语言模型：$p(x)=p(w_1,w_2,\\dots,w_N)$ 给一句话打概率分数。“他明天去上课”比“侬明朝得返课啦”在普通话中概率更高。生成 = 学习训练数据的概率分布。\n\n直觉：判别式只需在类别间画线；生成式要刻画整个数据空间的“地形高低”——真实样本处概率密度高，奇怪样本处几乎为 0。",
+      "tags": ["生成式vs判别式", "概念"]
+    },
+    {
+      "title": "图像的概率分布与生成目标",
+      "content": "把一张 $64\\times64\\times3$ 的图像看作高维向量 $x$，则存在一个真实数据分布 $p_{data}(x)$：\n\n- 像“戴眼镜的男人”“黑发女人”这类真实人脸，$p_{data}(x)$ **密度很高**；\n- 随机噪声、扭曲怪图，$p_{data}(x)\\approx 0$。\n\n**生成模型的目标**：找到一个可参数化的 $p_{model}(x)$ 使其尽量逼近 $p_{data}(x)$。这引出两个核心问题：\n\n1. **如何表示并采样 $p_{model}(x)$？** —— 用一个生成器神经网络 $G$，把简单分布（如高斯噪声 $z\\sim N(0,I)$）映射成复杂的图像分布 $P_G$。\n2. **如何让 $p_{model}(x)\\approx p_{data}(x)$？** —— 不同模型给出不同答案：GAN 用判别器对抗，VAE 用 ELBO，Diffusion 用去噪。\n\n> 关键直觉：直接写出高维图像的显式概率密度极难，所以现代生成模型大多采用“**隐式**采样器 + 某种分布匹配准则”的思路。",
+      "tags": ["数据分布", "生成目标"]
+    },
+    {
+      "title": "自编码器 (Autoencoder, AE)",
+      "content": "自编码器是一种无监督的**降维/压缩**模型，由编码器和解码器组成：\n\n$$x \\xrightarrow{\\text{Encoder}} z \\xrightarrow{\\text{Decoder}} \\hat{x}$$\n\n- **编码器** 把输入压成低维隐编码 $z$（瓶颈，bottleneck）；\n- **解码器** 从 $z$ 重建 $\\hat{x}$；\n- 训练目标是**最小化重建误差**，如 $\\lVert x-\\hat{x}\\rVert^2$。\n\n它本质上是 PCA 的非线性推广，能学到数据的压缩表示。\n\n**为什么 AE 不能直接做生成？** 训练后 $z$ 的分布是“数据决定的”、不可知（intractable）的：随便采一个 $z$ 喂给解码器，往往落在训练时从未出现过的区域，解码出无意义内容。也就是说隐空间**不连续、不完整**。这正是 VAE 要解决的问题。",
+      "tags": ["自编码器", "降维"]
+    },
+    {
+      "title": "变分自编码器 (VAE) — 核心思想",
+      "content": "VAE 是自编码器的**概率化改造**：让隐编码 $z$ 既是某张真实图像的压缩码，又**被强制服从一个先验分布**（通常是单位高斯 $N(0,I)$）。\n\n实现方式：编码器不再输出一个确定的 $z$，而是输出一个高斯分布的**均值向量 $\\mu$** 和**标准差向量 $\\sigma$**，再从中采样：\n\n$$z \\sim N(\\mu, \\sigma^2)$$\n\n- **编码器** 学习近似后验 $q_\\phi(z\\mid x)$；\n- **解码器** 学习似然 $p_\\theta(x\\mid z)$；\n- 因为 $z$ 被约束接近标准高斯，**生成时只需从 $N(0,I)$ 采样 $z$，再解码即可得到新图像**，解决了 AE 隐空间不可用的问题。\n\n> 直觉：VAE 在隐空间“填洞铺路”，让相邻的 $z$ 解码出相似内容、任意采的 $z$ 都解码出有意义内容。",
+      "tags": ["VAE", "概率生成"]
+    },
+    {
+      "title": "VAE 的损失函数：ELBO",
+      "content": "VAE 通过**最大化对数似然的下界 (Evidence Lower BOund, ELBO)** 来训练。等价地，最小化损失：\n\n$$L(\\theta,\\phi\\mid x) = -\\mathbb{E}_{z\\sim q_\\phi(z\\mid x)}\\big[\\log p_\\theta(x\\mid z)\\big] + \\mathrm{KL}\\big(q_\\phi(z\\mid x)\\,\\|\\,p(z)\\big)$$\n\n两项含义：\n\n1. **重建损失 (Reconstruction Loss)**：$-\\mathbb{E}_{q_\\phi}[\\log p_\\theta(x\\mid z)]$，要求由 $z$ 解码出的 $\\hat{x}$ 像原图 $x$，保证编码不丢信息。\n2. **正则项 (Regularization / KL 项)**：$\\mathrm{KL}(q_\\phi(z\\mid x)\\,\\|\\,p(z))$，把近似后验拉向先验 $p(z)=N(0,I)$，让隐空间规整。\n\n> KL 散度衡量两个分布的差异，恒 $\\ge 0$，当两分布相同时为 0。两项之间存在**权衡 (trade-off)**：KL 太强会牺牲重建质量（过度平滑/模糊），太弱则隐空间退化回普通 AE。",
+      "tags": ["VAE", "ELBO", "KL散度"]
+    },
+    {
+      "title": "重参数化技巧 (Reparameterization Trick)",
+      "content": "问题：损失里要对 $z\\sim N(\\mu,\\sigma^2)$ 的采样求期望，但**采样操作不可微**，梯度无法从解码器回传到编码器的 $\\mu,\\sigma$。\n\n解决：把随机性“移出”计算路径——\n\n$$z = \\mu + \\sigma \\odot \\boldsymbol{\\varepsilon}, \\qquad \\boldsymbol{\\varepsilon}\\sim N(0,I)$$\n\n其中 $\\odot$ 为逐元素乘。这样：\n\n- 随机性集中在与参数无关的噪声 $\\varepsilon$ 上；\n- $z$ 对 $\\mu,\\sigma$ 是**确定的可微函数**，梯度可正常反向传播；\n- 采样得到的 $z$ 仍服从 $N(\\mu,\\sigma^2)$，数学等价。\n\n> 这是 VAE 能端到端用梯度下降训练的关键工程技巧。",
+      "tags": ["VAE", "重参数化"]
+    },
+    {
+      "title": "VAE 正则化的作用：连续性与完整性",
+      "content": "KL 正则项让隐空间具备两个期望性质，使其真正可用于生成：\n\n1. **连续性 (Continuity)**：隐空间中**相近的两点解码后内容也相似**，不会一点点移动 $z$ 就跳变出完全不同的图。\n2. **完整性 (Completeness)**：从隐空间**任意采样都能解码出“有意义”的内容**，没有空洞/无效区域。\n\n对比：\n\n- **无正则化 (普通 AE)**：相近的点可能解码差异巨大；某些点解码出无意义内容。\n- **有正则化 (VAE)**：相近点相似解码，且都有意义。\n\n**隐空间扰动 (Latent Perturbation)**：缓慢增减 $z$ 的**单个维度**，输出会沿某个可解释属性平滑变化，例如“微笑程度”“头部姿态”。说明不同维度编码了不同的可解释潜在特征——这是 VAE 表示学习的价值。",
+      "tags": ["VAE", "正则化", "隐空间"]
+    },
+    {
+      "title": "GAN：生成器与判别器的对抗框架",
+      "content": "**生成对抗网络 (Generative Adversarial Network)** 让两个神经网络互相博弈：\n\n- **生成器 $G$**：输入隐编码/噪声 $z\\sim N(0,I)$，输出假图 $G(z)$，目标是把噪声变成以假乱真的图像来**骗过判别器**。\n- **判别器 $D$**：是个二分类器，输入一张图输出它是真($p_{data}$)还是假($p_G$)的概率，目标是**分辨真假**。\n\n训练像“造假者 vs 鉴定师”不断对抗升级。**直觉结论**：当判别器再也无法区分真假时（$D\\approx 0.5$），说明 $p_{model}(x)\\approx p_{data}(x)$，生成器已复现真实数据分布。\n\n- $D$ 希望对真图输出 $D(x)\\to 1$，对假图输出 $D(G(z))\\to 0$；\n- $G$ 希望让 $D(G(z))\\to 1$，与 $D$ 目标完全相反（adversarial）。",
+      "tags": ["GAN", "对抗训练"]
+    },
+    {
+      "title": "GAN 的目标函数：minimax 博弈",
+      "content": "基于二元交叉熵 $\\ell(h(x),y)=-y\\log h(x)-(1-y)\\log(1-h(x))$，GAN 的价值函数为：\n\n$$\\min_G \\max_D V(D,G)=\\mathbb{E}_{x\\sim p_{data}}[\\log D(x)] + \\mathbb{E}_{z\\sim p_z(z)}[\\log(1-D(G(z)))]$$\n\n分解理解：\n\n- **判别器目标（最大化 $V$）**：$D^\\star=\\arg\\max_D \\mathbb{E}_{x\\sim p_{data}}[\\log D(x)]+\\mathbb{E}_{x\\sim p_G}[\\log(1-D(x))]$，即让真图得分高、假图得分低。\n- **生成器目标（最小化 $V$）**：$G$ 只与第二项有关，$G^\\star=\\arg\\min_G \\mathbb{E}_{z\\sim p_z}[\\log(1-D(G(z)))]$，即让 $D(G(z))$ 变大。\n\n这是一个 **minimax 极小极大博弈**。理论上**全局最优解**是 $p_G=p_{data}$，即生成器复现真实数据分布，此时 $D\\equiv 1/2$。\n\n> 实践中常把 $G$ 的目标改成最大化 $\\log D(G(z))$（非饱和形式），以缓解训练初期梯度消失。",
+      "tags": ["GAN", "minimax", "目标函数"]
+    },
+    {
+      "title": "GAN 的训练算法与模式崩溃",
+      "content": "**交替优化**（外层迭代 $N$ 次）：\n\n1. **更新判别器（重复 $K$ 次）**：从噪声先验采 $m$ 个 $z$、从数据采 $m$ 个 $x$，沿**梯度上升**最大化\n$$\\frac{1}{m}\\sum_{i=1}^{m}\\big[\\log D(x_i)+\\log(1-D(G(z_i)))\\big]$$\n2. **更新生成器**：采 $m$ 个 $z$，沿**梯度下降**最小化 $\\frac{1}{m}\\sum_{i=1}^{m}\\log(1-D(G(z_i)))$（更新 $G$ 时冻结 $D$）。\n\n**GAN 的常见问题：**\n\n- **模式崩溃 (Mode Collapse)**：$G$ 只学会生成少数几种能骗过 $D$ 的样本，丧失多样性（例如人脸只会生成一张脸）。\n- **训练不稳定 / 不收敛**：两网络博弈难平衡，易振荡。\n- **梯度消失**：$D$ 太强时 $G$ 几乎得不到梯度。\n- **难以评估**：没有显式似然，难量化生成质量。\n\n优点：生成图像**清晰锐利**，采样**一步到位、速度快**。",
+      "tags": ["GAN", "训练算法", "模式崩溃"]
+    },
+    {
+      "title": "GAN 变体：DCGAN / 条件 GAN / CycleGAN",
+      "content": "- **DCGAN (Deep Convolutional GAN)**：生成器用**反卷积/转置卷积 (deconvolution)** 上采样，判别器用**卷积**下采样，是把 GAN 做稳的经典工程实践。还能做**隐向量算术 (latent vector arithmetic)**，如“戴眼镜男 − 男 + 女 ≈ 戴眼镜女”，说明隐空间语义线性可组合。\n- **条件 GAN (Conditional GAN, CGAN)**：给 $G$ 和 $D$ 都额外输入一个**条件**（如类别标签）来**控制输出内容**；$D$ 判断的是“图像与条件是否为真实配对”。可用于图像到图像翻译，但需要**成对 (parallel) 监督数据**。\n- **CycleGAN**：在**无配对样本**下做域转换（如斑马↔马、夏↔冬）。用两个生成器 $G_{AB},G_{BA}$ 与**循环一致性损失 (cycle-consistency loss)**：$x\\to G_{AB}(x)\\to G_{BA}(G_{AB}(x))$ 应重建回 $x$（L2/L1 损失），从而在没有配对标签时保持图像结构内容不变。",
+      "tags": ["GAN", "DCGAN", "CycleGAN"]
+    },
+    {
+      "title": "扩散模型 (Diffusion) — 前向加噪与反向去噪",
+      "content": "**去噪扩散模型 (Denoising Diffusion Model)** 的核心思想：**通过去噪来学会生成**。它包含两个相反的过程：\n\n1. **前向扩散过程 (Forward Diffusion)，固定不可训练**：分 $T$ 步，每步给上一步图像 $x_{t-1}$ 加一点固定的高斯噪声（噪声强度 $\\beta_t$）：\n$$x_t = \\sqrt{1-\\beta_t}\\,x_{t-1} + \\sqrt{\\beta_t}\\,\\varepsilon,\\quad \\varepsilon\\sim N(0,I)$$\n经过足够多步后，$x_T$ 变成近乎纯高斯噪声。\n2. **反向去噪过程 (Reverse Denoising)，可训练**：从噪声 $x_T$ 出发，用神经网络逐步去噪 $x_t\\to x_{t-1}$，最终还原/生成出清晰图像 $x_0$。\n\n> 直觉：把“破坏数据”的过程一步步逆转，反向过程看起来就像在**从随机噪声里生成新数据**。相比 VAE/GAN 一次性生成，扩散是**从粗到细、逐步**生成的。",
+      "tags": ["Diffusion", "前向加噪", "反向去噪"]
+    },
+    {
+      "title": "扩散模型的网络、损失与训练",
+      "content": "反向过程用神经网络估计每步 $x_{t-1}$ 的分布（均值 $\\mu_\\theta$ 与方差），网络通常是 **U-Net**（含 ResNet 块与自注意力层）。\n\n**预测噪声而非图像**：实践中并不直接预测去噪图像，而是让网络 $\\varepsilon_\\theta(x_t,t)$ **预测当初加入的噪声 $\\varepsilon$**，再由它反推 $\\mu_\\theta$。\n\n**损失函数**：本质是个**去噪自编码器**，最小化预测与目标的均方误差，简化形式为\n$$\\mathcal{L}=\\mathbb{E}_{x_0,\\varepsilon,t}\\big[\\lVert \\varepsilon - \\varepsilon_\\theta(x_t,t)\\rVert^2\\big]$$\n（讲义写作 $\\mathrm{MSE}(\\mu_\\theta(x_t,t),\\,x_{t-1})$）。\n\n**训练流程**：① 从数据集采图 $x_0$，用前向过程加噪得 $x_t$；② 网络据 $x_t$ 和时间步 $t$ 预测噪声/去噪；③ 对 $t$ 从 $T$ 到 $0$ 反复估计。\n\n**优缺点**：生成质量高、多样性好、训练稳定（在 ImageNet 上 **Diffusion 击败 GAN**），是 Stable Diffusion 等的基础；缺点是**采样需多步迭代、速度慢**。",
+      "tags": ["Diffusion", "U-Net", "损失函数"]
+    },
+    {
+      "title": "三类模型对比：GAN vs VAE vs Diffusion",
+      "content": "| 模型 | 训练准则 | 采样 | 质量/多样性 | 主要缺点 |\n|---|---|---|---|---|\n| **GAN** | 对抗博弈 $\\min_G\\max_D V$ | 一步生成，快 | 图像锐利，但易模式崩溃 | 训练不稳定、无显式似然 |\n| **VAE** | 最大化 ELBO（重建+KL） | 一步生成，快 | 隐空间规整可解释，但偏模糊 | 重建/正则权衡致图像糊 |\n| **Diffusion** | 去噪 MSE（预测噪声） | 多步迭代，慢 | 质量高、多样性好、训练稳 | 采样慢、计算量大 |\n\n**自回归生成 (Autoregressive)** 是另一条路线：把样本分解为条件概率连乘 $p(x)=\\prod_i p(x_i\\mid x_{<i})$，逐元素/逐词生成（如语言模型、PixelRNN）。优点是有**精确似然**、生成可控；缺点是**串行生成慢**。\n\n> 选择直觉：要快且锐用 GAN；要可解释隐空间用 VAE；要最高保真度可接受慢用 Diffusion；序列/离散数据（文本）用自回归。",
+      "tags": ["对比", "自回归", "总结"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "下列关于判别式模型与生成式模型的说法，正确的是？",
+      "options": [
+        "判别式模型学习数据分布 $p(x)$，可用于采样新样本",
+        "生成式模型学习 $p(x)$（或联合分布），目标是刻画数据如何产生并可采样",
+        "GAN、VAE、Diffusion 都属于判别式模型",
+        "判别式模型一定比生成式模型参数多"
+      ],
+      "answer": "B",
+      "explanation": "生成式模型建模数据本身的分布 $p(x)$ 以便采样合成；判别式模型建模 $p(y\\mid x)$ 或决策边界用于分类。GAN/VAE/Diffusion 均为生成式模型，故 A、C 错；参数多少与类别无必然关系，D 错。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "生成模型的核心目标可概括为？",
+      "options": [
+        "找到 $p_{model}(x)$ 使其尽量逼近真实数据分布 $p_{data}(x)$",
+        "最小化分类的交叉熵误差",
+        "把输入压缩到尽可能低的维度",
+        "让判别器的准确率达到 100%"
+      ],
+      "answer": "A",
+      "explanation": "生成模型希望学到的 $p_{model}(x)$ 逼近 $p_{data}(x)$，从而能采样出像真实数据的新样本。注意在 GAN 中判别器若达到 100% 准确反而说明生成器很差。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "普通自编码器(AE)训练后，为什么不能直接随机采样隐编码 $z$ 来生成新图像？",
+      "options": [
+        "因为解码器没有可训练参数",
+        "因为 AE 的重建误差恒为 0",
+        "因为 $z$ 的分布由数据决定、不可知，随机采的 $z$ 常落在无意义区域，隐空间不连续不完整",
+        "因为 AE 的隐编码维度必须等于输入维度"
+      ],
+      "answer": "C",
+      "explanation": "AE 只优化重建，没有约束隐空间形状，导致隐空间存在空洞、不连续；随便采的 $z$ 解码出无意义内容。VAE 通过 KL 正则把后验拉向先验来解决该问题。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "VAE 的损失 $L=-\\mathbb{E}_{q_\\phi(z\\mid x)}[\\log p_\\theta(x\\mid z)] + \\mathrm{KL}(q_\\phi(z\\mid x)\\,\\|\\,p(z))$ 中，KL 项的作用是？",
+      "options": [
+        "保证重建图像与原图一致",
+        "把近似后验 $q_\\phi(z\\mid x)$ 拉向先验 $p(z)=N(0,I)$，规整隐空间",
+        "增大隐编码的维度",
+        "让判别器无法区分真假"
+      ],
+      "answer": "B",
+      "explanation": "第一项是重建损失保证 $z$ 不丢信息；KL 项是正则项，使近似后验接近标准高斯先验，从而隐空间连续完整、可从 $N(0,I)$ 采样生成。VAE 无判别器，D 错。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "VAE 中引入重参数化技巧 $z=\\mu+\\sigma\\odot\\varepsilon,\\ \\varepsilon\\sim N(0,I)$ 的主要原因是？",
+      "options": [
+        "减少模型参数量",
+        "让采样操作可微，使梯度能反向传播到编码器的 $\\mu,\\sigma$",
+        "把 $z$ 的维度降到 1",
+        "替代 KL 散度的计算"
+      ],
+      "answer": "B",
+      "explanation": "直接从 $N(\\mu,\\sigma^2)$ 采样不可微，梯度无法回传。重参数化把随机性移到与参数无关的 $\\varepsilon$ 上，使 $z$ 成为 $\\mu,\\sigma$ 的可微函数，从而可端到端梯度训练。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "GAN 的价值函数为 $\\min_G\\max_D V(D,G)=\\mathbb{E}_{x\\sim p_{data}}[\\log D(x)]+\\mathbb{E}_{z\\sim p_z}[\\log(1-D(G(z)))]$。其中判别器 $D$ 的目标是？",
+      "options": [
+        "最大化 $V$：对真图输出趋近 1、对假图输出趋近 0",
+        "最小化 $V$：让 $D(G(z))$ 趋近 1",
+        "最大化生成图像的清晰度",
+        "最小化隐编码与先验的 KL 散度"
+      ],
+      "answer": "A",
+      "explanation": "$D$ 是真假分类器，通过最大化 $V$ 让 $\\log D(x)$ 大（真图判真）、$\\log(1-D(G(z)))$ 大（假图判假）。最小化 $V$ 让 $D(G(z))\\to1$ 是生成器 $G$ 的目标。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "关于 GAN minimax 博弈的全局最优解，下列说法正确的是？",
+      "options": [
+        "最优时判别器对所有输入输出 1",
+        "最优时生成器分布 $p_G=p_{data}$，判别器 $D\\equiv 1/2$ 无法区分真假",
+        "最优时生成器只输出训练集中的单一样本",
+        "全局最优要求 $p_G$ 与 $p_{data}$ 的 KL 散度最大"
+      ],
+      "answer": "B",
+      "explanation": "GAN 的理论全局最优是生成器复现真实分布 $p_G=p_{data}$，此时真假不可分，判别器只能给出 $1/2$。C 描述的是模式崩溃这一失败现象，而非最优。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "“模式崩溃 (Mode Collapse)”指的是 GAN 训练中的什么现象？",
+      "options": [
+        "判别器损失变为负数",
+        "生成器只生成少数几种能骗过判别器的样本，丧失多样性",
+        "生成图像分辨率自动下降",
+        "编码器与解码器无法对齐"
+      ],
+      "answer": "B",
+      "explanation": "模式崩溃是 GAN 典型失败模式：$G$ 找到几个能稳定骗过 $D$ 的输出便不再覆盖数据的全部模式，导致生成样本高度雷同、多样性差。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "CycleGAN 能在“无配对数据”下做域转换（如斑马↔马），其关键设计是？",
+      "options": [
+        "使用条件标签作为判别器输入",
+        "循环一致性损失：$x\\to G_{AB}(x)\\to G_{BA}(\\cdot)$ 应重建回 $x$",
+        "把扩散过程加到生成器中",
+        "用 KL 散度约束隐空间为高斯"
+      ],
+      "answer": "B",
+      "explanation": "CycleGAN 用两个生成器和循环一致性损失，要求图像经 A→B→A 转换后能重建回原图，从而在没有成对样本时仍保持内容结构，避免任意映射。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "去噪扩散模型(Diffusion)的两个过程分别是？",
+      "options": [
+        "前向去噪过程（可训练）与反向加噪过程（固定）",
+        "前向加噪过程（固定）与反向去噪过程（可训练）",
+        "编码过程与解码过程，均可训练",
+        "对抗过程与重建过程"
+      ],
+      "answer": "B",
+      "explanation": "前向扩散是固定的、逐步给数据加高斯噪声直到变成纯噪声；反向去噪是可训练的神经网络，从噪声逐步去噪生成数据。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "现代扩散模型(如 DDPM)在反向过程的神经网络实践中，通常让网络直接预测什么？",
+      "options": [
+        "下一步的类别标签",
+        "完整的清晰图像 $x_0$",
+        "当前步加入的噪声 $\\varepsilon$（再据此反推均值 $\\mu_\\theta$）",
+        "判别器的真假得分"
+      ],
+      "answer": "C",
+      "explanation": "DDPM 实践中网络 $\\varepsilon_\\theta(x_t,t)$ 预测加入的噪声，损失为 $\\lVert\\varepsilon-\\varepsilon_\\theta(x_t,t)\\rVert^2$，再由预测噪声计算均值，比直接回归图像更稳定有效。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "下列哪些属于扩散模型相对 GAN 的优点？（多选）",
+      "options": [
+        "训练通常更稳定",
+        "生成多样性好、不易模式崩溃",
+        "单步采样、生成速度更快",
+        "在 ImageNet 等基准上图像质量可超过 GAN"
+      ],
+      "answer": ["A", "B", "D"],
+      "explanation": "扩散模型训练稳定、覆盖模式全、质量高（Diffusion beats GANs）。但其需多步迭代采样，速度明显比 GAN 的一步生成慢，故 C 不是优点。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "关于自编码器(AE)与变分自编码器(VAE)，下列说法正确的有？（多选）",
+      "options": [
+        "AE 训练目标是最小化重建误差",
+        "VAE 的编码器输出一个分布的均值 $\\mu$ 和标准差 $\\sigma$，再采样得 $z$",
+        "VAE 的 KL 正则使隐空间具备连续性与完整性",
+        "AE 的隐空间天然适合从先验随机采样生成"
+      ],
+      "answer": ["A", "B", "C"],
+      "explanation": "A、B、C 正确描述了 AE/VAE。D 错：AE 隐空间不连续不完整，随机采样难生成有意义内容，这正是 VAE 用 KL 正则要改进的地方。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "easy",
+      "stem": "在 GAN 中，当判别器再也无法区分真假图像（输出趋近 0.5）时，意味着生成器分布已接近真实数据分布。",
+      "answer": true,
+      "explanation": "正确。判别器无法区分说明 $p_{model}(x)\\approx p_{data}(x)$，对应 GAN 的全局最优 $D\\equiv 1/2$，此时生成器复现了真实数据分布。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "自回归生成模型通过 $p(x)=\\prod_i p(x_i\\mid x_{<i})$ 逐元素生成，因而具有精确似然，但生成是串行的、速度较慢。",
+      "answer": true,
+      "explanation": "正确。自回归模型(如语言模型、PixelRNN)把联合分布分解为条件概率连乘，可计算精确似然且生成可控，但必须按顺序逐步生成，难以并行，采样慢。"
+    },
+    {
+      "type": "short",
+      "difficulty": "hard",
+      "stem": "简述 VAE 的 ELBO 损失两项的含义，以及它们之间存在怎样的权衡。",
+      "answer": "VAE 最小化损失 $L=-\\mathbb{E}_{q_\\phi(z\\mid x)}[\\log p_\\theta(x\\mid z)] + \\mathrm{KL}(q_\\phi(z\\mid x)\\,\\|\\,p(z))$，即最大化对数似然下界 ELBO：\n\n- **重建损失项** $-\\mathbb{E}_{q_\\phi}[\\log p_\\theta(x\\mid z)]$：要求从隐编码 $z$ 解码出的 $\\hat{x}$ 尽量还原原图 $x$，保证编码不丢失信息、生成清晰。\n- **KL 正则项** $\\mathrm{KL}(q_\\phi(z\\mid x)\\,\\|\\,p(z))$：把近似后验拉向先验 $N(0,I)$，使隐空间连续、完整，便于从先验采样生成。\n\n**权衡**：KL 权重过大 → 后验被过度压向先验，牺牲重建质量，生成图像模糊；KL 权重过小 → 隐空间退化、接近普通 AE，丧失可采样性。需在“重建保真”与“隐空间规整”间平衡（β-VAE 即显式调节该权重）。",
+      "explanation": "考查对 ELBO 两项物理含义及重建-正则权衡的理解，对应 VAE 损失与正则化作用知识点。"
+    },
+    {
+      "type": "short",
+      "difficulty": "medium",
+      "stem": "从生成方式、训练准则、采样速度与典型缺点四个角度，简要对比 GAN、VAE、Diffusion 三类生成模型。",
+      "answer": "- **GAN**：通过生成器与判别器的对抗博弈 $\\min_G\\max_D V(D,G)$ 训练；**一步采样、速度快**；图像锐利；缺点是训练不稳定、易**模式崩溃**、无显式似然难评估。\n- **VAE**：通过最大化 ELBO（重建损失 + KL 正则）训练；**一步采样、速度快**；隐空间规整、可解释；缺点是生成图像偏**模糊**（重建-正则权衡）。\n- **Diffusion**：通过前向加噪/反向去噪、最小化噪声预测 MSE 训练；**多步迭代采样、速度慢**；质量最高、多样性好、训练稳定（Diffusion beats GANs）；缺点是采样慢、计算量大。\n\n直觉选择：要快用 GAN，要可解释隐空间用 VAE，要最高保真度可接受慢用 Diffusion。",
+      "explanation": "考查三类模型的横向对比，对应 GAN vs VAE vs Diffusion 总结知识点。"
+    }
+  ]
+}

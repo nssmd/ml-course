@@ -1,0 +1,233 @@
+{
+  "id": "l13",
+  "title": "计算机视觉",
+  "subtitle": "Computer Vision",
+  "summary": "本讲系统介绍计算机视觉的核心任务与代表方法：图像分类、语义分割(全卷积网络、转置卷积上采样、U-Net 编解码结构)、目标检测(R-CNN 系两阶段方法、Faster R-CNN 的 RPN 与锚框、YOLO 单阶段回归)、检测评价指标($\\text{IoU}$、NMS、$\\text{mAP}$)、图像描述(Encoder-Decoder 与注意力)，以及视觉 Transformer(ViT)、CLIP 对比式图文预训练与 LLaVA 等视觉大模型(VLM)。",
+  "knowledgePoints": [
+    {
+      "title": "计算机视觉的核心任务谱系",
+      "content": "计算机视觉旨在让机器理解图像内容。按输出粒度与形式，常见任务可分为：\n\n- **图像分类(Classification)**：给整张图一个类别标签，如 \"cat\"。典型流程是 `卷积 + MLP + Softmax`，用交叉熵训练。\n- **语义分割(Semantic Segmentation)**：给**每个像素**打类别标签(GRASS/CAT/TREE/SKY...)，但不区分同类的不同个体。\n- **目标检测(Object Detection)**：定位图中每个物体并给出**边界框 + 类别**，如 cat/dog 各自的框。\n- **实例分割(Instance Segmentation)**：像素级分割且区分个体(检测 + 分割的结合)。\n- **图像描述(Image Captioning)**：为图像生成自然语言句子。\n- **图像生成(Image Generation)** 等。\n\n> 直觉：从\"整图一个标签\"到\"每像素一个标签\"再到\"每物体一个框\"，输出空间逐渐变得结构化、密集，对模型的空间定位能力要求越来越高。",
+      "tags": ["任务概览", "分类", "分割", "检测"]
+    },
+    {
+      "title": "语义分割：从朴素逐像素到滑窗的困境",
+      "content": "语义分割的目标：**将图像切分为语义独立的若干区域，并给每个像素打类别标签**。输入是图片，输出是与输入同尺寸的像素类别图。\n\n两种朴素思路及其缺陷：\n\n1. **直接分类单个像素**：单个像素脱离上下文(context)几乎无法判断类别——一个绿色像素既可能是草也可能是衣服。**问题：缺乏上下文信息**。\n2. **滑动窗口(Sliding Window)**：围绕每个像素抠出一个 patch，用 CNN 分类其中心像素。这引入了局部上下文，但**重叠 patch 之间的卷积特征被反复重算，极其低效，没有复用共享特征**。\n\n> 这两个失败的尝试引出了关键改进方向：用一个网络一次性、共享地为所有像素做预测——即全卷积网络。",
+      "tags": ["语义分割", "滑动窗口", "上下文"]
+    },
+    {
+      "title": "全卷积网络(FCN)与下采样-上采样结构",
+      "content": "**全卷积网络(Fully Convolutional Network, FCN)** 的核心思想：网络只由卷积层构成(无全连接)，一次性为所有像素输出预测。\n\n- 朴素全卷积(始终保持原分辨率)：输入 `3×H×W` → 多层卷积 → 得分图 `C×H×W` → 对通道取 `argmax` → 预测 `H×W`。**问题：在原始分辨率上做卷积计算/显存开销极大**。\n- 实用做法：网络内部先**下采样(Downsampling)**(池化/带步长卷积)压缩分辨率、提取高层语义，再**上采样(Upsampling)** 恢复到原分辨率输出逐像素预测。\n\n这样既能在低分辨率特征图上廉价地捕获大范围上下文，又能最终输出密集预测。下采样好理解(池化、strided conv)，难点在\"如何在网络内上采样\"。\n\n代表工作：Long et al. (FCN, CVPR 2015)、Noh et al. (Deconvolution Network, ICCV 2015)。",
+      "tags": ["FCN", "全卷积", "下采样", "上采样"]
+    },
+    {
+      "title": "网络内上采样：Unpooling 与转置卷积",
+      "content": "把低分辨率特征图放大到高分辨率，有几类方法：\n\n**1. 固定规则的 Unpooling(无参数)**\n- **Nearest Neighbor(最近邻)**：把每个值复制填满对应区域，如 `2→[[2,2],[2,2]]`。\n- **Bed of Nails(钉床)**：只把值放到块的某个固定位置(如左上角)，其余补 0。\n\n**2. 转置卷积(Transposed Convolution / Deconvolution，可学习)**\n\n普通卷积可写成矩阵乘法：把核重排成卷积矩阵 $C$ (如 $4\\times16$)，输入展平为 $16\\times1$ 列向量，输出 $C\\cdot x$ 得 $4\\times1$。\n\n转置卷积则用**转置矩阵** $C^\\top$ ($16\\times4$) 去乘一个 $4\\times1$ 的输入，得到 $16\\times1$ 的输出再 reshape。直觉上它\"把 1 个输入值散布(connect)到输出中的多个值\"，实现可学习的上采样。\n\n> 注意：转置卷积常被叫\"反卷积(deconvolution)\"，但它并非数学上卷积的逆运算，只是把卷积的连接关系反向使用。它的参数是可学习的，比固定 unpooling 更灵活。",
+      "tags": ["转置卷积", "上采样", "Unpooling", "反卷积"]
+    },
+    {
+      "title": "编解码结构与 U-Net",
+      "content": "**Encoder-Decoder(编码器-解码器)** 是分割网络的主流骨架：\n\n- **Encoder(编码器)**：用卷积 + 下采样逐步压缩空间分辨率、增大感受野、提取高层语义。\n- **Decoder(解码器)**：用反卷积/上采样逐步恢复分辨率，输出逐像素预测。\n\n**U-Net** (Ronneberger et al.，最初用于生物医学图像分割)在此基础上加入了关键的 **跳跃连接(Skip Connections)**：将编码器对应层的高分辨率特征直接拼接到解码器同级，**把浅层精细的空间/边缘细节补回解码器**。\n\n优点：\n- 跳跃连接缓解了下采样导致的细节丢失，分割边界更精确；\n- 在小数据集(如医学图像)上也能训练得很好。\n\n> U-Net 形如字母 \"U\"：左半边收缩(下采样)、右半边扩张(上采样)，横向的跳跃连接把两侧对称层连起来。",
+      "tags": ["U-Net", "编解码", "跳跃连接", "语义分割"]
+    },
+    {
+      "title": "目标检测=分类+定位(单物体)",
+      "content": "对**单个物体**而言，目标检测 = **分类(Classification) + 定位(Localization)**。\n\n一个 CNN 提取特征(如 4096 维向量)后接两个头(head)：\n\n- **分类头**：FC `4096→1000`(类别数)，输出类别分数(Cat:0.9, Dog:0.05...)，用**交叉熵(Cross-Entropy)** 损失。\n- **定位头**：FC `4096→4`，回归边界框坐标 $(x,y,w,h)$，用 **L2 损失**对比预测框与真值框。\n\n总损失是两者的加权和(多任务学习)：\n\n$$L = L_{cls} + \\lambda L_{loc}$$\n\n> 这是检测的最简形式，但它假设图中**恰好一个**物体。一旦物体数量不定，固定数目的输出头就行不通了。",
+      "tags": ["目标检测", "分类", "定位", "多任务损失"]
+    },
+    {
+      "title": "多物体检测的难点与区域提议",
+      "content": "**多物体检测的核心困难**：每张图的物体数量不同，CNN 需要的输出数目就不固定(2 个物体要 8 个坐标，3 个要 12 个……)，无法用固定输出网络直接解决。\n\n朴素解法：枚举图像中各种 **裁剪框(crop)**，对每个框分类为某物体或背景。问题：需要在**海量位置、尺度、长宽比**上跑 CNN，计算量爆炸。\n\n**区域提议(Region Proposals)** 缓解了这一点：\n- 先用启发式算法找出图中\"看起来像物体(blobby / objectness)\"的少量候选区域，再只对这些区域分类。\n- 代表算法 **Selective Search**：几秒内(CPU)给出约 **2000** 个区域提议，召回率高、相对快速。\n\n> 思路转变：与其在所有可能位置盲目搜索，不如先\"聪明地\"提出少数可能含物体的候选框，把搜索空间从百万级降到千级。",
+      "tags": ["多物体", "区域提议", "Selective Search", "objectness"]
+    },
+    {
+      "title": "R-CNN 与 Fast R-CNN",
+      "content": "**R-CNN (Girshick et al., CVPR 2014)** 流程：\n1. 用 Selective Search 提取约 2k 个 ROI(候选区域)；\n2. 每个 ROI 缩放到 224×224，分别送入 ImageNet 预训练 CNN 提特征；\n3. 用 **SVM** 对每个区域特征分类；\n4. 用**边界框回归(Bbox regression)** 修正坐标 $(dx,dy,dw,dh)$。\n\n> R-CNN 的致命问题：每张图要做约 **2000 次独立的 CNN 前向传播**，极慢(训练/推理都慢)。\n\n**Fast R-CNN** 的关键改进：**先对整图跑一次 CNN，再在卷积特征图上裁剪 ROI**(ROI Pooling)，而非在原图上裁剪后各自跑 CNN。\n- 所有 ROI **共享同一次主干(backbone)卷积计算**，大幅提速；\n- 每个区域只需一个轻量的 Per-Region 网络做 `Linear+softmax` 分类和坐标回归；\n- 端到端训练，用神经网络头替代了 SVM。\n\n主干网络(Backbone)可用 VGG、ResNet 等。",
+      "tags": ["R-CNN", "Fast R-CNN", "ROI Pooling", "两阶段"]
+    },
+    {
+      "title": "Faster R-CNN 与区域提议网络(RPN)",
+      "content": "Fast R-CNN 仍依赖 Selective Search 在 CPU 上生成提议，成为新瓶颈。**Faster R-CNN (Ren et al., NIPS 2015)** 的突破：**让 CNN 自己生成提议**——插入 **区域提议网络(Region Proposal Network, RPN)**。\n\nRPN 工作方式：\n- 在特征图的**每个点**放置固定大小的 **锚框(anchor box，锚盒)**；实际用 $K$ 个不同尺寸/长宽比的锚框；\n- 对每个锚框做**二分类**(是否含物体 / objectness)，输出 `K×H'×W'`；\n- 对判定含物体的锚框**回归 4 个坐标**修正框位置，输出 `4K×H'×W'`；\n- 按 objectness 分数排序所有 `K×H'×W'` 个框，取 **top ~300** 作为提议。\n\nFaster R-CNN 联合训练 **4 个损失**：\n1. RPN 物体/非物体分类；\n2. RPN 框坐标回归；\n3. 最终类别分类；\n4. 最终框坐标回归。\n\n这是经典的**两阶段(two-stage)检测器**：RPN 先提议，再对提议做精细分类与回归。整个流程几乎全在 GPU 上，速度比 Fast R-CNN 大幅提升。",
+      "tags": ["Faster R-CNN", "RPN", "锚框", "两阶段"]
+    },
+    {
+      "title": "锚框(Anchor Box)机制",
+      "content": "**锚框(Anchor Box)** 是密集检测的关键设计：在特征图每个空间位置预设一组**参考框**，模型不直接预测绝对坐标，而是预测每个锚框\"是否含物体\"以及相对锚框的**偏移量(box corrections)**。\n\n要点：\n- 每个位置放 $K$ 个不同**尺度(scale)与长宽比(aspect ratio)** 的锚框，以覆盖大小不一、形状各异的物体；\n- 锚框使\"不定数目物体检测\"转化为\"对固定数目锚框做固定输出的分类+回归\"，解决了输出数目不定的难题；\n- 训练时按锚框与真值框的 $\\text{IoU}$ 划分正/负样本。\n\n> 直觉：与其让网络从零猜框，不如给它一堆\"模板框\"作为起点，只需学习微调即可。锚框是 Faster R-CNN、YOLO(部分版本)、SSD 等检测器的共同基石。",
+      "tags": ["锚框", "anchor", "尺度", "长宽比"]
+    },
+    {
+      "title": "YOLO：单阶段实时检测",
+      "content": "**YOLO (You Only Look Once, Redmon et al., CVPR 2016)** 把目标检测**直接当作一个回归问题**，一次前向就输出所有框，实现**实时**检测。\n\n流程：\n1. 将图片划分为 $S\\times S$ 个网格(grid cell，原文 $S=7$)；\n2. **每个网格预测 $B$ 个带置信度的边界框** $(x,y,h,w,\\text{conf})$；\n3. **每个网格同时预测 $C$ 个类别(含背景)的概率分布**；\n4. 输出张量尺寸为 $S\\times S\\times(5B+C)$；\n5. 综合各框回归出最终预测框。\n\n**单阶段(one-stage) vs 两阶段(two-stage)对比：**\n- 单阶段(YOLO/SSD)：无独立提议步骤，分类与定位一气呵成，**速度快、可实时**，早期版本对小物体/密集物体精度略逊；\n- 两阶段(Faster R-CNN)：先提议再精修，**精度高但较慢**。\n\n> 名字 \"You Only Look Once\" 点明其本质：整张图只看一次就完成检测，无需反复抠图分类。",
+      "tags": ["YOLO", "单阶段", "实时检测", "网格"]
+    },
+    {
+      "title": "检测评价指标：IoU、NMS、mAP",
+      "content": "**1. 交并比(IoU, Intersection over Union)** 衡量预测框与真值框的重叠程度：\n\n$$\\text{IoU} = \\frac{|A \\cap B|}{|A \\cup B|}$$\n\n取值 $[0,1]$，越大越准。常用阈值(如 $\\text{IoU} \\ge 0.5$)判定一个预测是否算\"命中\"(TP)。\n\n**2. 非极大值抑制(NMS, Non-Maximum Suppression)**：检测器常对同一物体输出多个重叠框，NMS 用于去重：\n- 按置信度排序，选最高分框保留；\n- 删除与它 $\\text{IoU}$ 超过阈值的其他框；\n- 在剩余框中重复，直到没有框可处理。\n\n**3. 平均精度均值(mAP, mean Average Precision)**：检测的核心总评指标。\n- 对某类，按置信度排序预测，结合 $\\text{IoU}$ 阈值判定 TP/FP，画 Precision-Recall 曲线，曲线下面积即该类的 **AP**；\n- 对所有类别的 AP 取平均得 **mAP**(如 COCO 还在多个 IoU 阈值上平均，记作 mAP@[.5:.95])。\n\n> 这三者环环相扣：IoU 是基础度量，NMS 用 IoU 去冗余，mAP 用 IoU 判命中并综合精确率与召回率给出最终分数。",
+      "tags": ["IoU", "NMS", "mAP", "评价指标"]
+    },
+    {
+      "title": "数据增强与迁移学习",
+      "content": "视觉模型常借助两类工程手段提升性能：\n\n**数据增强(Data Augmentation)**：在训练时对图像做随机变换以扩充样本、提升泛化、抑制过拟合：\n- 几何类：随机裁剪、翻转、旋转、缩放、平移；\n- 颜色类：亮度/对比度/色调抖动、灰度化；\n- 遮挡/混合类：随机擦除、Cutout、Mixup、CutMix 等。\n增强相当于注入对人类无关紧要的不变性(平移、翻转后仍是猫)，让模型更鲁棒。\n\n**迁移学习(Transfer Learning)**：用在大数据集(如 ImageNet)上**预训练**好的网络作为起点，再迁移到目标任务：\n- **特征提取**：冻结主干，仅训练新加的分类/检测头(数据少时适用)；\n- **微调(Fine-tuning)**：在新数据上继续训练部分或全部层(数据较多时适用)。\n\n本讲中检测器普遍使用 **ImageNet 预训练的 CNN 主干(VGG/ResNet)**，图像描述与 VLM 则使用预训练 CNN/CLIP 提取特征——都是迁移学习的体现。",
+      "tags": ["数据增强", "迁移学习", "微调", "预训练"]
+    },
+    {
+      "title": "图像描述：Encoder-Decoder 与注意力",
+      "content": "**图像描述(Image Captioning)**：输入图像 $I$，输出自然语言序列 $y=y_1,y_2,\\dots,y_T$。\n\n**基础 Encoder-Decoder：**\n- Encoder：用预训练 CNN 提取空间特征 $z$，经 MLP 得上下文向量 $c=f_W(z)$；\n- Decoder：RNN 逐词生成 $y_t=g_V(y_{t-1},h_{t-1},c)$，常令初始状态 $h_0=c$。\n- **问题**：整张图的信息被压缩(bottleneck)进单一向量 $c$，长描述时信息不足。\n\n**带注意力的 Encoder-Decoder (Show, Attend and Tell, ICML 2015)：**\n- 保留 CNN 的**空间特征网格** $z_{i,j}$；\n- 解码每个词时计算一组**注意力权重** $a_{i,j}$，生成与该词相关的上下文向量 $c_t$，即 $y_t=g_V(y_{t-1},h_{t-1},c_t)$；\n- 这样生成\"hat\"时注意力聚焦帽子区域，生成\"person\"时聚焦人——**每个词关注图像不同区域**，缓解了瓶颈问题、可解释性更强。\n\n> 进一步可对 CNN 特征施加**自注意力(self-attention)**，乃至完全用 Transformer 取代卷积。",
+      "tags": ["图像描述", "Encoder-Decoder", "注意力", "瓶颈"]
+    },
+    {
+      "title": "视觉 Transformer(ViT)",
+      "content": "**ViT (Vision Transformer, Dosovitskiy et al., 2020)**——\"An Image is Worth 16×16 Words\"——主张**\"也许根本不需要卷积\"**，直接用 Transformer 做图像识别。\n\n核心流程：\n1. 把图像切成固定大小的 **patch**(如 16×16)，每个 patch 展平并线性投影成一个 token(\"图像版的词\")；\n2. 加上**位置编码(positional encoding)** 保留空间信息；\n3. 通常前置一个可学习的 `[CLS]` token；\n4. 送入标准 **Transformer Encoder**(多头自注意力 + MLP)；\n5. 用 `[CLS]` 的输出做分类。\n\n**ViT vs ResNet 的关键经验：**\n- ViT 缺少 CNN 的**归纳偏置(局部性、平移不变性)**，**在中小数据集上不如 CNN**；\n- 但在**超大规模数据**预训练时，ViT 能超越 ResNet，且扩展性(scaling)更好。\n\n> ViT 把\"图像\"重新表述为\"patch 序列\"，使图像与语言能共用同一套 Transformer 范式，为后续多模态大模型铺平道路。检测领域亦有纯 Transformer 方案 **DETR**(Carion et al., ECCV 2020)，端到端直接预测框集合，无需锚框与 NMS。",
+      "tags": ["ViT", "Transformer", "patch", "DETR"]
+    },
+    {
+      "title": "CLIP：对比式图文预训练",
+      "content": "**CLIP (Contrastive Language-Image Pre-training)**——\"Learning Transferable Visual Models From Natural Language Supervision\"——用**自然语言监督**学习可迁移的视觉表示。\n\n**训练阶段(图文对比学习)：**\n- 一个 batch 的图片送入**图片编码器**、对应文本送入**文本编码器**；\n- 计算两两编码向量的**余弦相似度**，构成相似度矩阵；\n- 用**对比损失(Contrastive Loss)** 拉近**匹配对(similar pairs)**、推远**不匹配对(dissimilar pairs)**——即对角线上的真实图文对相似度最大化。\n\n**推理阶段(零样本图文检索/分类)：**\n- 根据类别标签构造文字描述(如 \"a photo of a {label}\")；\n- 将图片与各候选文本分别编码，**取相似度最高者**作为预测，无需在目标数据上重新训练即可分类(zero-shot)。\n\n> CLIP 的双编码器(dual-encoder)架构与海量网络图文对训练，使其学到对齐的图文语义空间，成为后续众多 VLM 的视觉编码器基础。",
+      "tags": ["CLIP", "对比学习", "图文对齐", "零样本"]
+    },
+    {
+      "title": "视觉大模型(VLM)与 LLaVA",
+      "content": "**视觉大模型(Vision-Language Models, VLM)**：面向多模态(text-image)数据的大模型。常见架构：\n- **双编码器(dual-encoder)**：图、文各一个编码器，对齐表示(如 CLIP)；\n- **Encoder-Decoder / 融合(fusion)**：跨模态融合后解码；\n- **适配 LLM(Adapted LLM)**：把视觉特征接入现成大语言模型。\n\n**VLM with Adapted LLM 的典型结构**：图片经**图片编码器** → 经**多模态对齐**映射成与词向量同空间的视觉 token → 与输入文本(问题)的词向量**拼接** → 送入**文本解码器(LLM)** 生成回答。\n\n**LLaVA (Visual Instruction Tuning)**：用视觉输入扩展 LLaMA 等大语言模型。\n- 结构：**预训练 CLIP 视觉编码器** 提取 $Z_V$ → 经**映射 $W$** 对齐为 $H_V$ → 与文本指令 $H_q$ 一起送入语言模型 $f_\\theta$ 生成应答；\n- 数据构造：利用 **ChatGPT** 把图片注解转写成丰富的(指令-应答)对话数据，解决现有图文数据仅有简单注释、缺乏多样任务的问题；\n- 训练分两步:先用图文数据微调映射 $W$ 做对齐，再用生成的指令对话微调大模型(**指令微调**)。\n\n更广义还可推广到更多模态，如 **PaLM-E**(结合 PaLM-540B 与 ViT-22B，把文本、图像、机器人状态编码进同一空间做下一词预测，用于具身智能)。",
+      "tags": ["VLM", "LLaVA", "指令微调", "多模态"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "语义分割(Semantic Segmentation)的输出是什么？",
+      "options": ["整张图片的一个类别标签", "图中每个物体的边界框和类别", "图像中每个像素所属的类别", "一句描述图像的自然语言"],
+      "answer": "C",
+      "explanation": "语义分割对图像每个像素打类别标签(GRASS/CAT/TREE 等)，输出与输入同尺寸的像素级类别图。A 是分类，B 是目标检测，D 是图像描述。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "用滑动窗口(为每个像素抠 patch 再用 CNN 分类中心像素)做语义分割的主要缺点是什么？",
+      "options": ["无法引入上下文信息", "重叠 patch 间卷积特征被重复计算，效率极低", "无法处理彩色图像", "只能用于二分类"],
+      "answer": "B",
+      "explanation": "滑窗确实引入了局部上下文，但相邻 patch 大量重叠，CNN 对共享区域反复重算，没有复用特征，计算极其低效。这促使人们转向全卷积网络。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "关于转置卷积(Transposed Convolution / \"反卷积\")，下列说法正确的是？",
+      "options": ["它是普通卷积在数学上的精确逆运算", "它没有可学习参数，只是固定的插值规则", "它把卷积矩阵 C 转置后用于上采样，是可学习的", "它只能将分辨率缩小一半"],
+      "answer": "C",
+      "explanation": "转置卷积把卷积矩阵 $C$ 转置成 $C^\\top$ 用于上采样，参数可学习。它并非卷积的数学逆运算(只是反向使用连接关系)，也不是无参数的固定插值(那是最近邻/钉床式 unpooling)。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "U-Net 中跳跃连接(skip connections)的主要作用是？",
+      "options": ["减少网络参数量", "把编码器的高分辨率细节特征补回解码器，改善边界精度", "替代上采样操作", "实现端到端的目标检测"],
+      "answer": "B",
+      "explanation": "下采样会丢失精细的空间/边缘信息。U-Net 用跳跃连接把编码器对应层的高分辨率特征拼接到解码器同级，补回细节，使分割边界更准确，在小数据集上也表现良好。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "对单个物体而言，目标检测可以分解为哪两个子任务？",
+      "options": ["分割 + 生成", "分类 + 定位", "编码 + 解码", "检索 + 聚类"],
+      "answer": "B",
+      "explanation": "单物体检测 = 分类(Classification，交叉熵)+ 定位(Localization，回归 $(x,y,w,h)$，L2 损失)，总损失为两者加权和的多任务学习。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "R-CNN 速度很慢的根本原因是？",
+      "options": ["使用了 Selective Search 提取区域", "对每张图的约 2000 个候选区域各做一次独立的 CNN 前向传播", "SVM 分类器太慢", "图像分辨率过高"],
+      "answer": "B",
+      "explanation": "R-CNN 把约 2k 个 ROI 各自缩放后独立送入 CNN，需约 2000 次前向传播且不共享计算，因此极慢。Fast R-CNN 改为先对整图跑一次 CNN、再在特征图上裁剪 ROI 来解决。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "Faster R-CNN 相比 Fast R-CNN 的核心改进是？",
+      "options": ["用 SVM 替换 softmax 分类头", "引入区域提议网络(RPN)，让 CNN 自己生成提议", "去掉了边界框回归", "改用滑动窗口生成候选框"],
+      "answer": "B",
+      "explanation": "Fast R-CNN 仍依赖 CPU 上的 Selective Search 生成提议(瓶颈)。Faster R-CNN 插入 RPN，用网络从特征图直接预测提议，几乎全程在 GPU 上完成，大幅提速。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "在 Faster R-CNN 的 RPN 中，若特征图为 20×15、每个位置使用 K 个锚框，则\"锚框是否含物体\"和\"框坐标修正\"两个输出张量的通道数分别是？",
+      "options": ["1 和 4", "K 和 4", "K 和 4K", "2K 和 K"],
+      "answer": "C",
+      "explanation": "每个位置对 K 个锚框各做一次 objectness 二分类，故\"是否含物体\"为 K×20×15；每个锚框回归 4 个坐标，故\"框修正\"为 4K×20×15。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "YOLO 将目标检测主要建模为什么类型的问题，从而实现实时检测？",
+      "options": ["聚类问题", "回归问题(一次前向直接输出所有框)", "强化学习问题", "序列到序列问题"],
+      "answer": "B",
+      "explanation": "YOLO(You Only Look Once)把检测当作回归问题，将图分成 S×S 网格，每格预测 B 个带置信度的框和 C 个类别概率，一次前向输出 S×S×(5B+C)，无独立提议步骤，故可实时。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "两个边界框 A、B，交集面积为 20，并集面积为 50，它们的 IoU 是多少？",
+      "options": ["0.2", "0.4", "0.6", "2.5"],
+      "answer": "B",
+      "explanation": "$\\text{IoU}=\\frac{|A\\cap B|}{|A\\cup B|}=\\frac{20}{50}=0.4$。IoU 衡量预测框与真值框的重叠程度，常用 0.5 阈值判定命中。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "非极大值抑制(NMS)在目标检测中的作用是？",
+      "options": ["生成候选区域提议", "对同一物体的多个重叠框去重，保留置信度最高的", "计算 mAP 指标", "对图像做数据增强"],
+      "answer": "B",
+      "explanation": "检测器常对同一物体输出多个重叠框。NMS 按置信度排序，保留最高分框并删除与其 IoU 超阈值的其他框，循环至处理完，从而去除冗余框。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "关于 ViT(Vision Transformer)与 ResNet 的比较，下列说法正确的是？",
+      "options": ["ViT 在任何规模数据上都优于 ResNet", "ViT 缺乏 CNN 的归纳偏置，在小数据上常不如 CNN，但在超大规模预训练下可超越 ResNet", "ViT 必须依赖卷积层提取 patch", "ViT 无法用于图像分类"],
+      "answer": "B",
+      "explanation": "ViT 把图像切成 patch 当 token 输入 Transformer，缺少局部性/平移不变性等归纳偏置，故中小数据上不如 CNN；但在海量数据预训练时表现超越 ResNet 且扩展性更好。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "以下哪些是网络内部进行上采样(Upsampling)的方法？",
+      "options": ["最近邻 Unpooling(Nearest Neighbor)", "钉床式 Unpooling(Bed of Nails)", "转置卷积(Transposed Convolution)", "带步长的卷积(Strided Convolution)"],
+      "answer": ["A", "B", "C"],
+      "explanation": "最近邻、钉床式 unpooling 和转置卷积都用于把分辨率放大(上采样)。而带步长卷积和池化是下采样(Downsampling)操作，会缩小分辨率。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "hard",
+      "stem": "关于锚框(Anchor Box)机制，下列说法正确的有哪些？",
+      "options": ["在特征图每个位置预设一组不同尺度/长宽比的参考框", "模型通常预测相对锚框的偏移量而非绝对坐标", "锚框把不定数目物体检测转化为对固定数目锚框的分类与回归", "锚框只能用于单阶段检测器，不能用于 Faster R-CNN"],
+      "answer": ["A", "B", "C"],
+      "explanation": "A、B、C 均正确：锚框在每个位置放置多种尺度/比例的模板框，模型学习相对偏移，从而把数目不定的检测问题转为固定输出的分类+回归。D 错误：Faster R-CNN 的 RPN 正是基于锚框的两阶段检测器。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "easy",
+      "stem": "在图像描述中，引入注意力机制可以让解码器在生成每个词时关注图像的不同区域，从而缓解信息被压缩进单一上下文向量的瓶颈问题。",
+      "answer": true,
+      "explanation": "正确。基础 Encoder-Decoder 把整图压缩进单一向量 c 造成瓶颈；带注意力的模型保留空间特征网格，每生成一个词就计算对应的上下文向量 c_t，关注相关图像区域(如生成\"hat\"时聚焦帽子)。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "CLIP 在推理时对一张新图片做分类，必须先在目标数据集上重新训练分类头。",
+      "answer": false,
+      "explanation": "错误。CLIP 支持零样本(zero-shot)推理：根据类别标签构造文字描述，将图片与各候选文本编码后取相似度最高者作为预测，无需在目标数据上重新训练。"
+    },
+    {
+      "type": "short",
+      "difficulty": "medium",
+      "stem": "简述单阶段检测器(如 YOLO)与两阶段检测器(如 Faster R-CNN)在流程和速度/精度上的主要区别。",
+      "answer": "**两阶段(Faster R-CNN)**：先由区域提议网络(RPN)基于锚框生成候选区域(提议)，再对每个提议做精细的分类与边界框回归。流程分两步，**精度高但速度较慢**。\n\n**单阶段(YOLO)**：没有独立的提议步骤，将检测建模为回归，把图划分网格，每格一次性预测边界框、置信度和类别概率，一次前向输出全部结果。**速度快、可实时**，早期版本对小物体/密集物体精度略逊于两阶段方法。\n\n概括：两阶段\"先提议后精修\"换取精度；单阶段\"一步到位\"换取速度。"
+    },
+    {
+      "type": "short",
+      "difficulty": "hard",
+      "stem": "解释 mAP(mean Average Precision)是如何计算的，以及 IoU 在其中扮演什么角色。",
+      "answer": "**计算步骤：**\n1. 对某一类别，将所有预测框按置信度从高到低排序；\n2. 用 **IoU 阈值**(如 IoU≥0.5)判定每个预测是命中真值框的真正例(TP)还是误检(FP)；\n3. 沿排序逐个累计，计算不同阈值下的精确率(Precision)与召回率(Recall)，画出 **P-R 曲线**，曲线下面积即该类的 **AP**；\n4. 对所有类别的 AP 取平均，得到 **mAP**(COCO 等还会在多个 IoU 阈值上再平均，记作 mAP@[.5:.95])。\n\n**IoU 的角色**：IoU 是判定\"一个预测框是否算命中某真值框\"的标准($\\text{IoU}=\\frac{|A\\cap B|}{|A\\cup B|}$)。只有 IoU 达到阈值的预测才被记为 TP，因此 IoU 阈值的高低直接决定 TP/FP 的划分，进而影响 P-R 曲线与最终 mAP。"
+    }
+  ]
+}

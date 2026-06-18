@@ -1,0 +1,242 @@
+{
+  "id": "l17",
+  "title": "强化学习",
+  "subtitle": "Reinforcement Learning",
+  "summary": "强化学习研究智能体(Agent)如何在与环境交互的动态过程中，通过试错学习一个策略 $\\pi$ 以最大化长期累积奖励 $R_t=\\sum_{i\\ge t}\\gamma^{i-t}r_i$。本讲从马尔可夫决策过程(MDP)建模出发，依次讲解值函数与Q函数、贝尔曼递推、蒙特卡洛与时序差分(TD)、Q-Learning/SARSA、DQN、策略梯度(REINFORCE)、Actor-Critic与优势函数，并以AlphaGo、PPO/GRPO等案例收束到大模型对齐。",
+  "knowledgePoints": [
+    {
+      "title": "第三类学习范式：强化学习概览",
+      "content": "机器学习通常分为三大范式：\n\n- **监督学习**：数据是 $(x,y)$，目标是学习映射 $x\\to y$，如分类、回归。\n- **无监督学习**：数据只有 $x$ 无标签，目标是挖掘隐含结构，如聚类、降维。\n- **强化学习(Reinforcement Learning, RL)**：数据是 **状态-动作对 + 奖励(state-action pairs + rewards)**，目标是 **从环境中获得最大化的累积奖励**。\n\nRL 的核心特征是 **在动态环境中通过交互试错学习**：没有现成的标准答案标签，只有环境给出的奖励/惩罚(reward/penalty)信号。典型应用包括下围棋(AlphaGo)、星际争霸(AlphaStar)、Atari 游戏、机器人控制、自动驾驶等。这些场景共同的问题是：**在每个状态下应该采取哪个动作，才能最终取得成功(赢)？**",
+      "tags": ["强化学习", "学习范式", "概念"]
+    },
+    {
+      "title": "强化学习的基本要素：Agent / Environment / State / Action / Reward",
+      "content": "强化学习系统由若干基本要素构成：\n\n- **智能体(Agent)**：执行动作并从中学习的扮演者。\n- **环境(Environment)**：智能体所处的外部“世界”，智能体可对其采取动作。\n- **状态(State $s_t$)**：智能体对环境的观测(observation)。\n- **动作(Action $a_t$)**：智能体在环境中可执行的一个操作；所有可能动作的集合称为 **动作空间(Action space) $A$**(如 $\\leftarrow\\uparrow\\rightarrow\\downarrow$)。\n- **奖励(Reward $r_t$)**：环境对智能体某个动作打分的反馈(feedback)信号，可正可负。\n- **策略(Policy $\\pi$)**：从状态到动作的映射 $\\pi:S\\to A$，决定在每个状态下做什么。\n\n交互循环为：智能体在状态 $s_t$ 下根据策略选动作 $a_t$ → 环境给出奖励 $r_t$ 并转移到新状态 $s_{t+1}$ → 重复。这一闭环是所有 RL 算法的基础。",
+      "tags": ["基本要素", "Agent", "策略"]
+    },
+    {
+      "title": "马尔可夫决策过程 (MDP)",
+      "content": "RL 本质上是一个 **随机过程**，更确切地说是 **马尔可夫决策过程(Markov Decision Process, MDP)**——它在马尔可夫过程的基础上引入了 **动作** 和 **奖励**。\n\n**马尔可夫性(Markov property)**：下一状态只依赖于当前状态和动作，与更早的历史无关。\n\nMDP 用 **五元组** $(S,A,\\{P_{sa}\\},\\gamma,R)$ 表示：\n\n- $S$：状态集合(a set of states)。\n- $A$：动作集合(a set of actions)。\n- $\\{P_{sa}\\}$：状态转移概率(probabilities of state transition)，即在状态 $s$ 执行动作 $a$ 后转移到各状态的概率分布。\n- $R:S\\times A\\to\\mathbb{R}$：奖励函数(reward function)。\n- $\\gamma\\in[0,1]$：未来奖励的 **折扣因子(discount factor)**。\n\nMDP 的动态过程(Dynamics)：① 从状态 $s_0$ 开始；② Agent 选动作 $a_0\\in A$；③ 得到奖励 $r(s_0,a_0)$；④ 按 $s_1\\sim P_{s_0a_0}$ 随机转移；⑤ 重复。MDP 为强化学习建立了一种统一的数学框架。",
+      "tags": ["MDP", "马尔可夫", "五元组"]
+    },
+    {
+      "title": "长期回报与折扣因子 γ",
+      "content": "RL 的目标不是最大化单步奖励，而是 **长期回报(long-term return)**。\n\n- **实际长期回报**：从时刻 $t$ 起所有即时奖励之和\n$$R_t=\\sum_{i=t}^{\\infty}r_i=r_t+r_{t+1}+r_{t+2}+\\cdots$$\n- **折扣长期回报(Discounted return)**：用折扣因子 $\\gamma$ 对未来奖励加权\n$$R_t=\\sum_{i=t}^{\\infty}\\gamma^{i-t}r_i=r_t+\\gamma r_{t+1}+\\gamma^2 r_{t+2}+\\cdots$$\n\n**折扣因子 $\\gamma\\in[0,1]$ 的含义与作用**：\n\n- $\\gamma\\to 0$：智能体“目光短浅”，只看重眼前奖励。\n- $\\gamma\\to 1$：智能体“高瞻远瞩”，几乎同等看重遥远的未来奖励。\n- 数学上，$\\gamma<1$ 能保证无限时域(infinite horizon)下回报级数收敛，避免发散；同时反映“未来不确定、当下奖励更可靠”的直觉。\n\n> 学习目标可概括为：找到一个策略 $\\pi$，使期望折扣回报 $\\mathbb{E}[R_t]$ 最大化。",
+      "tags": ["长期回报", "折扣因子", "目标函数"]
+    },
+    {
+      "title": "动作值函数 Q(s,a) 与最优策略",
+      "content": "**Q 函数(动作值函数, action-value function)** 度量在状态 $s$ 执行动作 $a$ 后，能获得的 **期望总未来回报**：\n$$Q(s_t,a_t)=\\mathbb{E}[R_t\\mid s_t,a_t]$$\n它相当于给每个 `(状态, 动作)` 对打分 `score(state, action)`。\n\nQ 函数 **隐式定义了最优策略**：在任意状态 $s$ 下，选择使 Q 值最大的动作即为最优动作：\n$$\\pi^{\\star}(s)=\\arg\\max_{a}Q(s,a)$$\n直觉：好的策略应当在每个状态选择“未来回报最大”的动作。\n\n与之相对，**状态值函数(state-value function)** $V^{\\pi}(s)=\\mathbb{E}[R_t\\mid s]$ 只评估“处在状态 $s$ 有多好”，是对所有动作按策略求期望后的标量。二者关系：$V^{\\pi}(s)=\\mathbb{E}_{a\\sim\\pi}[Q^{\\pi}(s,a)]$。",
+      "tags": ["Q函数", "值函数", "最优策略"]
+    },
+    {
+      "title": "贝尔曼方程：Q 值的递归结构",
+      "content": "Q 值具有 **递归(recursive)结构**——当前状态的 Q 值依赖于下一状态的 Q 值，这就是 **贝尔曼方程(Bellman Equation)** 的核心思想。\n\n推导(对最优 Q)：\n$$Q(s_t,a_t)=\\mathbb{E}[r_t+\\gamma r_{t+1}+\\gamma^2 r_{t+2}+\\cdots]=r_t+\\gamma\\,\\mathbb{E}[r_{t+1}+\\gamma r_{t+2}+\\cdots]$$\n$$=r_t+\\gamma\\max_{a'}Q(s_{t+1},a')$$\n\n即把无穷级数“折叠”成 **即时奖励 + 折扣的未来最优 Q 值**。这给出了两类估计 Q 的思路：\n\n- **简单更新(Q 定义直接代入)**：$Q(s,a)\\leftarrow r+\\gamma\\max_{a'}Q(s',a')$。\n- **更稳健的增量更新(时序差分)**：$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,[r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)]$，其中 $\\alpha$ 是学习率，括号内是 TD 误差。\n\n贝尔曼方程是动态规划、Q-Learning、DQN 等几乎所有值方法的理论基石。",
+      "tags": ["贝尔曼方程", "递归", "动态规划"]
+    },
+    {
+      "title": "估计 Q 值的两条路：蒙特卡洛 vs 时序差分",
+      "content": "如何计算 Q 值？讲义给出两大方案，区别在于 **用什么来近似未来回报**：\n\n**方案一：蒙特卡洛预演 (Monte-Carlo Rollout)**\n- 思想：依赖重复随机采样获得数值结果(如用随机投点估计圆面积)。最朴素地认为 **值(value) = 平均累计奖励(mean return)**。\n- 做法：用策略 $\\pi$ 从 $s_t$ 采样 $N$ 个完整片段(episode)，计算每个片段的真实累计回报 $R_t$，再取平均更新 Q：\n$$Q(s_t,a_t)=\\mathbb{E}[R_t\\mid s_t,a_t]\\approx\\frac{1}{N}\\sum_{i=1}^{N}R_t^{(i)}$$\n- 特点：使用 **真实回报(use real return)**，无偏(unbiased)，但 **必须等整局结束** 才能更新，且方差大。\n\n**方案二：时序差分 (Temporal-Difference, TD)**\n- 思想：用 **下一状态的估计值** 代替剩余真实回报(use the value from the next state)，即贝尔曼自举(bootstrapping)。\n- 更新：$Q(s_t,a_t)\\leftarrow Q(s_t,a_t)+\\alpha[r+\\gamma\\max_{a'}Q(s_{t+1},a')-Q(s_t,a_t)]$。\n- 特点：**单步即可更新**，方差小、效率高，但因依赖自身估计而 **可能有偏(biased)**。",
+      "tags": ["蒙特卡洛", "时序差分", "TD", "估计方法"]
+    },
+    {
+      "title": "Q-Learning 算法与网格世界示例",
+      "content": "**Q-Learning** 用一张查找表(lookup table)记录所有 `(s,a)` 对的 Q 分数，并基于 TD 思想反复更新，直到收敛。\n\n核心更新式：\n$$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,[\\,r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)\\,]$$\n(简化版直接令 $Q(s,a)\\leftarrow r+\\gamma\\max_{a'}Q(s',a')$。)\n\n**网格世界(Grid World)示例**：\n- 设非终止状态每步奖励 $r=-0.04$(鼓励尽快到达目标)，终止格子给 $\\pm1$。\n- 初始化 Q 表全为 0，从起点出发；每走一步用更新式回填 Q 值，例如 $Q(s_0,a_\\uparrow)\\leftarrow -0.04+\\gamma\\max(0,0,0)=-0.04$。\n- 到达终止状态后重新开始(start over)，多轮迭代后 Q 表收敛。\n- 最终从 Q 表中读出每个格子的最优动作 $\\arg\\max_a Q(s,a)$，即得到一张 **策略地图**。\n\n关键点：Q-Learning 在更新目标里用 $\\max_{a'}$(贪婪)，因此学到的是 **最优策略的 Q 值**，属于 off-policy 方法(下一知识点详述)。",
+      "tags": ["Q-Learning", "网格世界", "查找表"]
+    },
+    {
+      "title": "探索 vs 利用与 ε-greedy；Q-Learning(off-policy) 与 SARSA(on-policy)",
+      "content": "RL 必须平衡 **探索(Exploration)** 与 **利用(Exploitation)**：一味选当前最优(利用)可能错过更好动作；一味随机(探索)又学不到好策略。\n\n**ε-greedy 策略**：以概率 $\\varepsilon$ 随机选一个动作(探索)，以概率 $1-\\varepsilon$ 选 $\\arg\\max_a Q(s,a)$(利用)。训练初期 $\\varepsilon$ 大、后期逐渐衰减。这正对应 DQN 算法中“以概率 $\\varepsilon$ 选随机动作，否则选 $\\max_a Q$”的采样步骤。\n\n**off-policy vs on-policy**(理解 Q-Learning 与 SARSA 的区别)：\n\n- **Q-Learning(off-policy)**：更新目标用 $\\max_{a'}Q(s',a')$——不管实际下一步采的是什么动作，都按“最优动作”更新。行为策略(ε-greedy)与学习的目标策略(贪婪)可以不同。\n- **SARSA(on-policy)**：更新目标用实际采到的下一动作 $a'$，即 $Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma Q(s',a')-Q(s,a)]$；学习的就是当前行为策略本身。\n\n直觉：Q-Learning 更“激进”(学最优)，SARSA 更“保守”(学实际执行的、含探索风险的策略)。",
+      "tags": ["探索利用", "ε-greedy", "Q-Learning", "SARSA", "off-policy"]
+    },
+    {
+      "title": "Q-Learning 的局限：维度灾难",
+      "content": "表格型 Q-Learning 的致命缺陷是 **维度灾难(Curse of Dimensionality)**：`(s,a)` 对的空间太大，无法枚举存表。\n\n- 若状态由 $N$ 个二值变量描述，则状态数为 $2^N$；若每维有 $k$ 个取值，则为 $k^N$——随维度 **指数爆炸**。\n- 当状态是连续的(如车的位置/速度、屏幕像素)时，状态数 **无限**，根本无法用离散表格表示。\n\n> 结论：真实问题(Atari 画面、围棋棋盘、机器人传感器)中状态往往是不可枚举的(intractable)。\n\n**破解之道**：不再为每个 `(s,a)` 存一个数，而是 **用一个带参数 $\\theta$ 的函数(神经网络)去近似 Q 值** $Q_\\theta(s,a)$——这就引出了深度 Q 网络(DQN)。",
+      "tags": ["维度灾难", "局限", "函数近似"]
+    },
+    {
+      "title": "深度 Q 网络 (DQN) 与经验回放、目标网络",
+      "content": "**DQN(Deep Q-Network)** 用深度神经网络(如 CNN)近似 Q 函数 $Q_\\theta(s,a)$，把状态(如游戏画面图像)作为输入。常见输出形式：输入状态 $s$，一次性输出所有动作的 Q 值 $Q_\\theta(s,a_1),\\dots$。\n\n**学习目标(回归到贝尔曼目标)**：以 $y=r_t+\\gamma\\max_a Q_\\theta(s_{t+1},a)$ 为目标，最小化均方误差(MSE)：\n$$\\ell(\\theta)=\\big\\|\\,(r_t+\\gamma\\max_a Q_\\theta(s_{t+1},a))-Q_\\theta(s_t,a_t)\\,\\big\\|^2$$\n预测过程：对新状态 $s$ 计算所有 $Q_\\theta(s,a)$，选 $a=\\arg\\max_a Q_\\theta(s,a)$。\n\n**两大稳定化技巧**：\n\n- **经验回放(Experience Replay)**：把多回合的转移 $(s,a,r,s')$ 存入回放缓冲区 $D$，训练时从中 **随机采样小批量(mini-batch)**。这打破样本间时间相关性，提高数据利用率。\n- **目标网络(Target Network)**：直接用同一个 $\\theta$ 既算目标又算预测会导致 **目标非平稳(non-stationary target)**、训练震荡。解决办法是用一套 **固定的旧参数 $\\theta_{old}$** 计算目标，每隔 $C$ 步才同步一次：\n$$\\nabla_{\\theta_t}L=\\mathbb{E}_{(s,a,r,s')\\sim D}\\big[(r+\\gamma\\max_{a'}Q(s',a';\\theta_{old})-Q(s,a;\\theta_t))\\,\\nabla_{\\theta_t}Q(s,a;\\theta_t)\\big]$$",
+      "tags": ["DQN", "经验回放", "目标网络"]
+    },
+    {
+      "title": "值学习 vs 策略学习：Policy Gradient 思想",
+      "content": "RL 算法可分为两大类：\n\n- **值学习(Value Learning)**：先学 $Q(s,a)$，再 **间接** 推出策略 $a=\\arg\\max_a Q(s,a)$。DQN 属此类。\n- **策略学习(Policy Learning)**：**直接** 学一个策略 $\\pi(s)$，按 $a\\sim\\pi(s)$ 采样动作。\n\n**策略梯度(Policy Gradient)的关键思想**：用神经网络 $\\pi_\\theta(a\\mid s)$ 直接输出动作的概率分布(如 $P(a_1\\mid s)=0.9$)，并 **直接对策略本身做优化**，无需经过 Q 函数中转。\n\n相比 DQN(从 Q 值取 argmax 得确定性动作)，策略网络天然输出 **随机策略**，更适合动作空间巨大或连续、最优动作需要随机性的场景。训练时用智能体的对局经验估计参数 $\\theta$；测试时按 $a\\sim\\pi_\\theta(a\\mid s)$ 选动作。",
+      "tags": ["策略学习", "值学习", "策略梯度"]
+    },
+    {
+      "title": "策略梯度推导与 REINFORCE 算法",
+      "content": "目标：最大化期望累计回报 $J(\\theta)=\\mathbb{E}_{\\tau\\sim p_\\theta(\\tau)}[R(\\tau)]=\\sum_\\tau R(\\tau)p_\\theta(\\tau)$，用梯度上升 $\\theta\\leftarrow\\theta+\\eta\\nabla_\\theta J(\\theta)$。\n\n**对数似然技巧(log-derivative trick)** 推导梯度：\n$$\\nabla_\\theta J(\\theta)=\\sum_\\tau R(\\tau)\\nabla_\\theta p_\\theta(\\tau)=\\sum_\\tau R(\\tau)p_\\theta(\\tau)\\nabla_\\theta\\log p_\\theta(\\tau)=\\mathbb{E}_{\\tau}[R(\\tau)\\nabla_\\theta\\log p_\\theta(\\tau)]$$\n由于轨迹概率 $p_\\theta(\\tau)=p(s_1)\\prod_t\\pi_\\theta(a_t\\mid s_t)p(s_{t+1}\\mid s_t,a_t)$ 中，环境转移项与 $\\theta$ 无关，求对数梯度后只剩策略项：\n$$\\nabla_\\theta J(\\theta)\\approx\\frac{1}{N}\\sum_{i=1}^{N}R(\\tau^{(i)})\\sum_t\\nabla_\\theta\\log\\pi_\\theta(a_t^{(i)}\\mid s_t^{(i)})$$\n\n**REINFORCE 算法(Williams 1992)**：\n1. 按当前策略 $\\pi_\\theta$ 采样若干完整轨迹 $\\{\\tau^{(1)},\\dots,\\tau^{(N)}\\}$；\n2. 对每条轨迹计算各 $(s_t,a_t)$ 的对数概率 $\\log\\pi_\\theta(a_t\\mid s_t)$ 及其梯度，并 **乘以该轨迹总回报 $R(\\tau)$** 作为权重；\n3. 用平均策略梯度更新 $\\theta\\leftarrow\\theta+\\eta\\nabla_\\theta J(\\theta)$，重复至收敛。\n\n**直觉**：与分类的交叉熵 $\\nabla L=-\\sum_t\\nabla\\log\\pi_\\theta(a_t\\mid s_t)$ 相比，策略梯度多了权重 $R_\\tau$——**回报高的轨迹提高其动作概率，回报低/为负的降低概率**。",
+      "tags": ["策略梯度", "REINFORCE", "对数似然技巧"]
+    },
+    {
+      "title": "策略梯度的局限与 Actor-Critic 框架",
+      "content": "**REINFORCE 的局限**：\n- 回报 $R(\\tau)=r_t+\\gamma r_{t+1}+\\cdots+\\gamma^{T-t}r_T$ **必须等整局结束** 才能算出；\n- 不同轨迹的 $\\{R_\\tau\\}$ **方差很大**，导致梯度估计噪声大、训练不稳。\n\n能否在每个 $s_t$ 处就估出 $\\mathbb{E}(R_\\tau)$？这引出 **演员-评论家(Actor-Critic)** 框架，融合策略学习与值学习：\n\n- **演员(Actor)**：策略网络 $\\pi_\\theta(a_t\\mid s_t)$，负责在每个状态预测/采样动作 —— policy-based。\n- **评论家(Critic)**：值网络，估计长期回报 $\\mathbb{E}(R_t\\mid s_t,a_t)=Q^\\pi(s_t,a_t)$ 或 $V^\\pi(s_t)$，对动作好坏打分 —— value-based。\n\n把 REINFORCE 中的 $R_\\tau$ 换成 Critic 给出的 $Q(s_t,a_t)$，就得到 Q Actor-Critic：\n$$J_{act}(\\theta)=\\sum_t Q(s_t,a_t)\\log\\pi_\\theta(a_t\\mid s_t)$$\nCritic 提供逐步的、低方差的价值估计，使 Actor 不必等到整局结束即可更新。",
+      "tags": ["Actor-Critic", "策略梯度局限", "方差"]
+    },
+    {
+      "title": "优势函数与 TD 误差：A2C 算法",
+      "content": "Q 值往往数值很大，直接用作权重会引入大方差。做法是 **减去一个基线(baseline)** $V(s_t)$，得到 **优势函数(Advantage Function)**：\n$$A^\\pi(s,a)=Q^\\pi(s,a)-V^\\pi(s)$$\n含义：动作 $a$ 相对“平均动作”好多少。$A>0$ 说明该动作是“惊喜”，值得 **提高其概率**；$A<0$ 说明比平均差，应 **降低其概率**。目标函数变为\n$$\\nabla_\\theta J(\\theta)=\\mathbb{E}\\Big[\\sum_t\\nabla_\\theta\\log\\pi_\\theta(a_t\\mid s_t)\\,A^\\pi(s_t,a_t)\\Big]$$\n\n**用 TD 误差替代优势函数**：状态值函数满足 $V^\\pi(s_t)\\approx r+\\gamma V^\\pi(s_{t+1})$，定义 **时序差分误差(TD error)**\n$$\\delta_t=r+\\gamma V^\\pi(s_{t+1})-V^\\pi(s_t)$$\n可以证明 $\\delta_t$ 恰好是优势函数 $A^\\pi(s,a)$ 的一个 **无偏估计**。于是：\n\n- **Actor 更新**(策略梯度，用 $\\delta_t$ 当权重)：$\\nabla J(\\theta)=\\sum_t\\delta_t\\nabla_\\theta\\log\\pi_\\theta(a_t\\mid s_t)$。\n- **Critic 更新**(类似 Q-Learning 的值回归)：$L(\\varphi)=\\mathbb{E}[\\|r+\\gamma V(s';\\varphi)-V(s;\\varphi)\\|^2]$，同样可用固定旧目标 $\\varphi_{old}$ 稳定训练。\n\n这就是 **基于优势的 Actor-Critic 算法(A2C)**：每步采样动作 $a_t\\sim\\pi_\\theta$，算 TD 目标 $y_t=r+\\gamma V_\\varphi(s_{t+1})$ 与误差 $\\delta_t=y_t-V_\\varphi(s_t)$，用 $\\delta_t^2$ 更新 Critic、用 $\\theta\\leftarrow\\theta+\\eta\\nabla_\\theta\\log\\pi_\\theta(a_t\\mid s_t)\\cdot\\delta_t$ 更新 Actor。",
+      "tags": ["优势函数", "TD误差", "A2C"]
+    },
+    {
+      "title": "案例 AlphaGo：策略网络、值网络与蒙特卡洛树搜索",
+      "content": "围棋对计算机极难：棋盘配置约 $10^{700}$ 种，博弈树复杂度 $b^d$(围棋分支 $b\\approx250$、深度 $d\\approx150$，远超国际象棋的 $35/80$)，无法暴力穷举。\n\n**RL 建模**：状态=棋盘配置(可看作图像，用 CNN 表示)；动作=落子位置；奖励=非终局 $r_t=0$、终局胜负 $\\pm1$；目标=最大化期望总收益。\n\n**三大网络/搜索组件**：\n- **策略网络(Policy Network)**：输入棋盘输出落子概率，**缩小搜索宽度(breadth)**。先用 3000 万人类棋谱做监督学习(最大化 $\\log p_\\sigma(a\\mid s)$，达 57% 预测准确率)，再用 **自我对弈 + 策略梯度** $\\sigma\\leftarrow\\sigma+\\eta\\nabla_\\sigma\\log p_\\sigma(a\\mid s)z$ 强化。\n- **值网络(Value Network)**：评估某局面有多好 $V(s_t)=\\mathbb{E}[z_t]$，用蒙特卡洛得到的真实胜负 $z$ 做回归 $L=\\|z_t-V_\\theta(s_t)\\|^2$，**缩小搜索深度(depth)**。\n- **蒙特卡洛树搜索(MCTS)**：结合采样进行决策，四阶段循环 —— **Selection**(按 $Q+u(P)$、$u(P)\\propto P/N$ 选叶节点)、**Expansion**(用策略网络展开下一层并赋先验概率 $P$)、**Evaluation/Rollout**(用值网络+随机预演估计该节点价值)、**Backup/回溯**(把评估值沿树向上更新访问计数 $N$ 与动作值 $Q$)。",
+      "tags": ["AlphaGo", "MCTS", "策略网络", "值网络"]
+    },
+    {
+      "title": "强化学习与大语言模型：RLHF、PPO 与 GRPO",
+      "content": "RL 是大语言模型(LLM)对齐的核心工具。**LLM Agent 的 MDP 设定**：状态 $s_t=\\{$对话历史, 环境上下文, 智能体记忆$\\}$；动作 $a_t$=文本生成(或调用工具/API)；奖励=即时反馈(如生成正确文本 $r=+1$、错误 $r=-1$)；由策略 $\\pi(a\\mid s)$ 驱动。\n\n**RLHF 两阶段**：① 训练 **奖励模型(Reward Model)** 对回答打分；② 用 RL(常用 PPO) 以奖励分数微调 SFT 模型。\n\n**PPO (Proximal Policy Optimization, OpenAI 2017)**：在 Actor-Critic 基础上支持 **离线/旧数据学习**，并通过 **截断(clip)机制** 限制新旧策略差距防止策略跑偏。引入策略比率 $r_t(\\theta)=\\dfrac{\\pi_\\theta(a_t\\mid s_t)}{\\pi_{\\theta_{old}}(a_t\\mid s_t)}$，截断目标函数：\n$$L^{CLIP}(\\theta)=\\mathbb{E}_t\\big[\\min(r_t(\\theta)A_t,\\;\\mathrm{clip}(r_t(\\theta),1-\\epsilon,1+\\epsilon)A_t)\\big]$$\n其中 $A_t$ 为优势函数。流程：旧策略 $\\theta_{old}$ 采集轨迹 → Critic 估计目标价值与 $A_t$ → 多个 epoch 用 mini-batch 梯度上升更新 Actor、梯度下降更新 Critic。\n\n**GRPO (Group Relative Policy Optimization)**：相对 PPO 的改进，**砍掉庞大的 Critic 价值网络**，改用 **群组内部相对比较** 计算优势。对同一输入生成多个候选 $\\{o_1,\\dots,o_G\\}$ 及奖励 $\\{r_1,\\dots,r_G\\}$，相对优势 $A_i=\\dfrac{r_i-\\mathrm{mean}(r_{1:G})}{\\mathrm{std}(r_{1:G})}$，再用类 PPO 的截断目标并加 KL 正则与参考策略对齐，显著降低训练开销。",
+      "tags": ["RLHF", "PPO", "GRPO", "大语言模型"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "强化学习与监督学习、无监督学习相比，其训练数据的形式是什么？",
+      "options": ["带标签的数据 $(x,y)$", "无标签的数据 $x$", "状态-动作对及奖励 (state-action pairs + rewards)", "只有奖励而没有状态"],
+      "answer": "C",
+      "explanation": "监督学习用 $(x,y)$，无监督学习用无标签 $x$，强化学习的数据是智能体与环境交互产生的状态-动作对及对应奖励，目标是最大化累积奖励。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "马尔可夫决策过程 (MDP) 通常用一个五元组表示。下列哪一项 **不属于** 该五元组？",
+      "options": ["状态集合 $S$", "动作集合 $A$", "折扣因子 $\\gamma$", "神经网络参数 $\\theta$"],
+      "answer": "D",
+      "explanation": "MDP 五元组为 $(S,A,\\{P_{sa}\\},\\gamma,R)$：状态、动作、转移概率、折扣因子、奖励函数。神经网络参数 $\\theta$ 是函数近似时才引入的，不是 MDP 定义的一部分。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "关于折扣因子 $\\gamma$，下列说法正确的是：",
+      "options": ["$\\gamma$ 越接近 0，智能体越看重遥远的未来奖励", "$\\gamma\\in[0,1]$，且 $\\gamma<1$ 有助于无限时域回报级数收敛", "$\\gamma$ 必须大于 1", "$\\gamma$ 决定的是即时奖励的符号"],
+      "answer": "B",
+      "explanation": "$\\gamma\\in[0,1]$。$\\gamma$ 越接近 1 越重视远期奖励，越接近 0 越目光短浅；$\\gamma<1$ 保证 $\\sum\\gamma^{i-t}r_i$ 收敛。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "Q 函数 $Q(s,a)$ 隐式定义的最优策略 $\\pi^{\\star}(s)$ 是：",
+      "options": ["$\\pi^{\\star}(s)=\\arg\\min_a Q(s,a)$", "$\\pi^{\\star}(s)=\\arg\\max_a Q(s,a)$", "$\\pi^{\\star}(s)=\\sum_a Q(s,a)$", "$\\pi^{\\star}(s)=$ 随机均匀选择动作"],
+      "answer": "B",
+      "explanation": "$Q(s,a)$ 衡量在状态 $s$ 执行动作 $a$ 的期望未来回报，最优策略应在每个状态选择使 Q 值最大的动作，即 $\\arg\\max_a Q(s,a)$。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "贝尔曼方程将 $Q(s_t,a_t)$ 递归地写成下列哪种形式？",
+      "options": ["$Q(s_t,a_t)=r_t\\cdot\\gamma\\cdot\\max_{a'}Q(s_{t+1},a')$", "$Q(s_t,a_t)=r_t+\\gamma\\max_{a'}Q(s_{t+1},a')$", "$Q(s_t,a_t)=\\max_{a'}Q(s_{t+1},a')-r_t$", "$Q(s_t,a_t)=r_t-\\gamma\\min_{a'}Q(s_{t+1},a')$"],
+      "answer": "B",
+      "explanation": "把无穷折扣回报折叠为即时奖励加折扣的下一状态最优 Q 值：$Q(s_t,a_t)=r_t+\\gamma\\max_{a'}Q(s_{t+1},a')$，这是值方法的理论基石。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "下列关于蒙特卡洛(MC)方法与时序差分(TD)方法估计 Q 值的比较，正确的是：",
+      "options": ["MC 用下一状态的估计值，TD 用真实回报", "MC 必须等整局结束才能更新且方差较大，TD 单步即可更新但可能有偏", "MC 与 TD 都不需要采样", "TD 一定无偏，MC 一定有偏"],
+      "answer": "B",
+      "explanation": "MC 使用真实累计回报(无偏但需整局结束、方差大)；TD 用下一状态估计值做自举(bootstrapping，单步可更新、方差小但可能有偏)。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "Q-Learning 的更新式 $Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)]$ 中，方括号内的量被称为：",
+      "options": ["折扣因子", "TD 误差 (时序差分误差)", "优势函数的方差", "经验回放缓冲"],
+      "answer": "B",
+      "explanation": "$r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)$ 是 TD 误差，表示“观测目标值”与“当前估计值”之差，$\\alpha$ 是学习率。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "为什么表格型 Q-Learning 在复杂任务中难以使用？",
+      "options": ["因为它无法计算奖励", "因为状态-动作空间随维度指数增长(维度灾难)，连续/海量状态无法枚举", "因为它不需要折扣因子", "因为它只能用于监督学习"],
+      "answer": "B",
+      "explanation": "若状态由 $N$ 个二值变量描述则有 $2^N$ 个状态(每维 $k$ 值则 $k^N$)，连续状态更是无限，表格无法存储，故需用神经网络近似 Q 值。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "在 DQN 中引入“目标网络(用固定旧参数 $\\theta_{old}$ 计算目标，每 C 步同步)”主要是为了解决什么问题？",
+      "options": ["减小回放缓冲区占用的内存", "缓解目标非平稳(non-stationary target)导致的训练震荡/不稳定", "让 Q 网络输出概率分布", "替代探索策略 ε-greedy"],
+      "answer": "B",
+      "explanation": "若用同一组参数 $\\theta$ 同时计算预测和目标，目标会随参数变化而漂移(非平稳)，导致训练发散。固定旧参数 $\\theta_{old}$ 提供稳定目标，每 C 步才更新一次。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "策略梯度推导中使用对数似然技巧后，环境转移概率项 $p(s_{t+1}\\mid s_t,a_t)$ 在 $\\nabla_\\theta\\log p_\\theta(\\tau)$ 中消失，原因是：",
+      "options": ["环境转移项数值恒等于 1", "环境转移项由环境决定、与策略参数 $\\theta$ 无关，对 $\\theta$ 求导为 0", "环境转移项被折扣因子抵消", "环境转移项是奖励的一部分"],
+      "answer": "B",
+      "explanation": "$p_\\theta(\\tau)=p(s_1)\\prod_t\\pi_\\theta(a_t\\mid s_t)p(s_{t+1}\\mid s_t,a_t)$，取对数求 $\\theta$ 梯度时，$p(s_1)$ 与转移项都与 $\\theta$ 无关导数为 0，只剩策略项 $\\nabla_\\theta\\log\\pi_\\theta(a_t\\mid s_t)$。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "在 Actor-Critic 中，TD 误差 $\\delta_t=r+\\gamma V^\\pi(s_{t+1})-V^\\pi(s_t)$ 被用来替代什么量？",
+      "options": ["折扣因子 $\\gamma$", "优势函数 $A^\\pi(s,a)=Q^\\pi(s,a)-V^\\pi(s)$ 的无偏估计", "策略概率 $\\pi_\\theta(a\\mid s)$", "学习率 $\\alpha$"],
+      "answer": "B",
+      "explanation": "讲义指出 TD 误差 $\\delta_t$ 恰好是优势函数 $A^\\pi(s,a)=Q-V$ 的一个无偏估计，因此可作为策略梯度的权重，得到 TD Actor-Critic(A2C)。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "PPO 的截断(clip)目标函数 $L^{CLIP}(\\theta)=\\mathbb{E}_t[\\min(r_t(\\theta)A_t,\\mathrm{clip}(r_t(\\theta),1-\\epsilon,1+\\epsilon)A_t)]$ 中，截断机制的主要作用是：",
+      "options": ["增大新旧策略的差距以加速学习", "限制策略比率 $r_t(\\theta)$ 偏离 1 过远，防止策略一步更新跑偏", "去掉 Critic 网络", "保证奖励恒为正"],
+      "answer": "B",
+      "explanation": "PPO 将策略比率 $r_t(\\theta)=\\pi_\\theta/\\pi_{\\theta_{old}}$ 裁剪到 $[1-\\epsilon,1+\\epsilon]$，限制新旧策略差距，避免单步更新过大导致策略崩坏，从而稳定训练。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "下列关于 DQN 训练技巧的说法，正确的有哪些？",
+      "options": ["经验回放将历史转移 $(s,a,r,s')$ 存入缓冲区并随机采样小批量，打破样本时间相关性", "目标网络用固定旧参数计算 Q 目标以稳定训练", "DQN 完全不需要探索策略", "用 CNN 等深度网络近似 Q 函数以应对维度灾难"],
+      "answer": ["A", "B", "D"],
+      "explanation": "A、B、D 都是 DQN 的核心要素。C 错误：DQN 算法中仍以概率 $\\varepsilon$ 选随机动作进行探索(ε-greedy)。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "hard",
+      "stem": "关于 GRPO (群组相对策略优化) 相对 PPO 的特点，下列正确的有：",
+      "options": ["GRPO 砍掉了庞大的 Critic 价值网络", "GRPO 用群组内部的相对比较来计算优势函数", "相对优势可写为 $A_i=\\frac{r_i-\\mathrm{mean}(r_{1:G})}{\\mathrm{std}(r_{1:G})}$", "GRPO 完全放弃了截断(clip)机制和参考策略"],
+      "answer": ["A", "B", "C"],
+      "explanation": "GRPO 用同一输入的一组候选输出的奖励做标准化得到相对优势，省去 Critic。D 错误：GRPO 仍保留类 PPO 的截断目标并加 KL 正则与参考策略对齐。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "easy",
+      "stem": "ε-greedy 策略中，智能体总是选择当前 Q 值最大的动作，从不进行随机探索。",
+      "answer": false,
+      "explanation": "ε-greedy 以概率 $\\varepsilon$ 随机选动作(探索)、以概率 $1-\\varepsilon$ 选 $\\arg\\max_a Q$(利用)，正是为了平衡探索与利用，并非从不探索。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "Q-Learning 在更新目标中使用 $\\max_{a'}Q(s',a')$(贪婪动作)，因此它是一种 off-policy(离策略)算法；而 SARSA 使用实际采取的下一动作，是 on-policy(在策略)算法。",
+      "answer": true,
+      "explanation": "正确。Q-Learning 的目标用 $\\max$(目标策略=贪婪，与行为策略 ε-greedy 不同)，属 off-policy；SARSA 用实际下一动作 $a'$ 更新，学习的就是行为策略本身，属 on-policy。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "在 AlphaGo 中，策略网络用于缩小搜索的宽度(breadth)，值网络用于缩小搜索的深度(depth)。",
+      "answer": true,
+      "explanation": "正确。策略网络输出落子概率，只展开有希望的着法以减少分支宽度；值网络直接评估局面，避免一路模拟到终局以减少搜索深度。"
+    },
+    {
+      "type": "short",
+      "difficulty": "medium",
+      "stem": "简述强化学习中“值学习(Value Learning)”与“策略学习(Policy Learning)”两类方法的区别，并各举一个代表算法。",
+      "answer": "**值学习(Value Learning)**：先估计值函数(如 $Q(s,a)$)，再 **间接** 推出策略 $a=\\arg\\max_a Q(s,a)$。代表算法：Q-Learning / DQN。\n\n**策略学习(Policy Learning)**：**直接** 用参数化网络 $\\pi_\\theta(a\\mid s)$ 表示策略并对其优化，按 $a\\sim\\pi(s)$ 采样动作，无需经过 Q 值中转。代表算法：策略梯度 / REINFORCE。\n\n二者可结合为 **Actor-Critic**：Actor 直接学策略(policy-based)，Critic 学值函数(value-based)为 Actor 提供低方差的逐步评估。",
+      "explanation": "考查对两大算法范式的理解。值学习经由值函数间接得策略(DQN)；策略学习直接优化策略分布(REINFORCE)；Actor-Critic 是二者融合。"
+    },
+    {
+      "type": "short",
+      "difficulty": "hard",
+      "stem": "为什么引入优势函数 $A^\\pi(s,a)=Q^\\pi(s,a)-V^\\pi(s)$ 来替代原始回报 $R_\\tau$ 或 $Q$ 值作为策略梯度的权重？请说明其直觉与好处。",
+      "answer": "**动机**：原始 REINFORCE 用整条轨迹回报 $R_\\tau$ 作权重，必须等整局结束、且方差很大；直接用 $Q(s,a)$ 数值往往偏大，同样带来高方差。\n\n**优势函数**减去基线 $V^\\pi(s)$(状态的平均价值)：$A^\\pi(s,a)=Q^\\pi(s,a)-V^\\pi(s)$，衡量动作 $a$ 相对“平均动作”好多少。\n\n- $A>0$：该动作比平均好，是“惊喜”，应 **提高其概率**；\n- $A<0$：比平均差，应 **降低其概率**。\n\n**好处**：① 减去基线不改变梯度期望(仍无偏)，但 **显著降低方差**，训练更稳；② 实践中可用 TD 误差 $\\delta_t=r+\\gamma V(s_{t+1})-V(s_t)$ 作为 $A$ 的无偏估计，从而 **每步即可更新**，无需等整局结束。这正是 A2C/Actor-Critic 的核心。",
+      "explanation": "考查优势函数的作用：减基线降方差、保持无偏，并可由 TD 误差实现单步更新，连接策略梯度局限与 Actor-Critic 解决方案。"
+    }
+  ]
+}

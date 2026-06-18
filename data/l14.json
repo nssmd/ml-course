@@ -1,0 +1,175 @@
+{
+  "id": "l14",
+  "title": "K-means聚类",
+  "subtitle": "K-means Clustering",
+  "summary": "K-means是最经典的无监督聚类算法，通过最小化簇内平方和(SSE) $J=\\sum_{k=1}^{K}\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2$，交替执行\"分配样本到最近质心\"与\"更新质心为簇均值\"两步直至收敛。",
+  "knowledgePoints": [
+    {
+      "title": "无监督学习与聚类(Unsupervised Learning & Clustering)",
+      "content": "前面几讲(回归、分类、生成)都依赖**标签**，属于**监督学习(Supervised Learning)**：目标是发现把数据属性与目标(类别)属性关联起来的模式。\n\n当数据**没有标签**时，我们仍可从中学习结构，这就是**无监督学习(Unsupervised Learning)**：探索数据以发现某种内在结构(intrinsic structure)。常见任务：\n- **聚类(Clustering)**：学习相似性，把样本分组，如 K-means、高斯混合模型(GMM)。\n- **降维(Dimensional Reduction)**：数据压缩，如 PCA、自编码器(Auto-encoder)。\n- **密度估计/生成(Density Estimation/Generative)**：如 GAN、VAE、Diffusion。\n\n**聚类(Clustering)** 的定义：将无标签数据组织成若干**相似性组(簇, cluster)**。一个**簇(cluster)** 是一组彼此\"相似(similar)\"、且与其它簇中样本\"不相似(dissimilar)\"的数据项。\n\n> 核心问题：如何刻画\"相似\"与\"不相似\"？——通常用**距离**(如欧氏距离)度量，距离越小越相似。",
+      "tags": ["无监督学习", "聚类", "概念"]
+    },
+    {
+      "title": "如何表示簇：质心与隶属关系(Centroid & Membership)",
+      "content": "假设我们已经(比如靠肉眼)分好了簇，如何**表示**它们？\n- 为每个簇选一个**中心点(center)**，让它最好地代表整个簇；\n- 为每个样本赋一个**标签(label)**，表示它属于哪个簇(membership/隶属关系)。\n\n好的中心(质心)应满足：\n- 质心(centroid)与本簇内样本的相似度，高于与其它样本的相似度；\n- 簇内样本到**本簇质心**的距离，小于到**其它簇质心**的距离。\n\n这就构成了\"中心-隶属(center-membership)\"框架，其中可被优化的有两件事：\n1. **更新中心(center update)**：质心应由同簇样本的位置(均值)决定；\n2. **更新隶属(label update)**：给定质心后，重新决定每个样本的归属。\n\n这两步**交替反复**执行——这正是 K-means 的核心思想，本质上是一种 EM 式(期望-最大化)的交替优化。",
+      "tags": ["质心", "隶属关系", "交替优化"]
+    },
+    {
+      "title": "K-means的问题形式化(Problem Formulation)",
+      "content": "给定数据集 $D=\\{x_1,\\dots,x_N\\}$，其中每个 $x_i\\in\\mathbb{R}^d$ 是 $d$ 维向量。K-means(MacQueen, 1967)要做的是：\n- 把数据划分成 **K 个簇**，每个簇的中心定义为簇内所有样本的**均值(mean)**，称为**质心(centroid)**；\n- 找到 K 个参考向量(质心) $\\mu_1,\\dots,\\mu_K$ 来最好地代表各簇；\n- 给每个样本 $x_i$ 赋一个变量 $m_i\\in\\{1,\\dots,K\\}$，标记它的簇隶属。\n\n注意 K 是**用户预先指定**的超参数。\"reference vector(参考向量)\"即质心，可看作该簇的原型(prototype)。",
+      "tags": ["形式化", "质心", "K值"]
+    },
+    {
+      "title": "目标函数：簇内平方和SSE/WSS",
+      "content": "K-means 优化的目标函数是**簇内平方和误差(Sum of Squared Error, SSE)**，又称**簇内平方和(Within-Sum-of-Squares, WSS)**：\n$$J=\\sum_{k=1}^{K}\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2$$\n其中 $C_k$ 是第 $k$ 个簇，$\\mu_k$ 是其质心。$J$ 衡量所有样本到各自质心的平方距离之和，越小说明簇越紧凑。\n\n**为什么质心是均值？** 固定隶属关系，对单个簇求 $\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2$ 关于 $\\mu_k$ 的最小值：令导数为零\n$$\\frac{\\partial}{\\partial\\mu_k}\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2=-2\\sum_{x\\in C_k}(x-\\mu_k)=0\\Rightarrow \\mu_k=\\frac{1}{|C_k|}\\sum_{x\\in C_k}x$$\n即让平方误差最小的中心点恰好是簇内样本的**算术平均**。这从数学上解释了\"更新质心=取均值\"的合理性。\n\n> 因为采用平方欧氏距离，K-means 隐含假设簇是**各向同性的球形**。",
+      "tags": ["目标函数", "SSE", "推导"]
+    },
+    {
+      "title": "K-means算法流程(分配/更新两步)",
+      "content": "标准 K-means 流程：\n1. **初始化**：随机选 K 个数据点作为初始质心(seeds/种子)。\n2. **分配步(Assignment)**：把每个样本分配到**最近的质心**所在的簇(\"赢者通吃 winner-takes-all\")：$m_i=\\arg\\min_k\\|x_i-\\mu_k\\|^2$。\n3. **更新步(Update)**：用当前的簇隶属重新计算各簇质心(取均值)：$\\mu_k=\\frac{1}{|C_k|}\\sum_{x\\in C_k}x$。\n4. **重复**第 2、3 步，直到满足收敛准则。\n\n这两步交替进行，每次迭代都不会增大目标函数 $J$，因此算法单调下降。可以把分配步类比 EM 的 E 步(估计隐变量/归属)，更新步类比 M 步(优化参数/质心)。\n\n```text\nrepeat:\n    # 分配步\n    for each x_i:  m_i = argmin_k ||x_i - mu_k||^2\n    # 更新步\n    for each k:    mu_k = mean(x in cluster k)\nuntil 收敛\n```",
+      "tags": ["算法流程", "EM", "迭代"]
+    },
+    {
+      "title": "收敛准则与时间复杂度(Convergence & Complexity)",
+      "content": "**收敛准则(Convergence Criterion)**，满足任一即可停止：\n- 没有(或极少)样本被重新分配到不同的簇；\n- 质心没有(或极小)变化；\n- SSE 的下降量低于某个阈值(minimum decrease in SSE)。\n\n**时间复杂度**：设两个样本间算距离为 $O(d)$($d$ 为维度)。\n- 分配步(重分配)：需要 $O(knd)$ 次距离计算($n$ 为样本数，$k$ 为簇数)；\n- 更新步(算质心)：每个样本加到某个质心一次，$O(nd)$；\n- 设两步各执行 $I$ 轮迭代，总复杂度 $O(Iknd)$。\n\n因为对样本数 $n$ 是线性的，K-means 被视为**线性算法**，这是它高效、流行的重要原因。",
+      "tags": ["收敛", "复杂度", "线性"]
+    },
+    {
+      "title": "局部最优与对初始种子的敏感性(Local Optimum)",
+      "content": "- 寻找 K-means 目标的**全局最优是 NP-hard** 的；\n- K-means 算法只保证收敛到**局部最优(local optimum)**，不保证全局最优。\n\n**不确定性来自哪里？** 主要来自**初始质心(种子)的随机选择**：\n- 不同随机种子会导致不同的聚类结果；\n- 某些种子会导致收敛很慢，或陷入次优(sub-optimal)的簇划分。\n\n实践缓解办法：\n- **多次重启(multiple restarts)**：用不同随机种子跑多次，取 SSE 最小的结果；\n- 使用更聪明的初始化(如 K-means++)；\n- 用启发式或其它方法的结果挑选\"好种子\"。",
+      "tags": ["局部最优", "初始化敏感", "NP-hard"]
+    },
+    {
+      "title": "如何选择K值：肘部法与轮廓系数(Choosing K)",
+      "content": "K 是用户必须指定的超参数，选 K 的常用方法：\n\n**肘部法(Elbow Method)**：\n- 对每个 K，计算簇内平方和 **WSS**(每个样本到其质心的平方距离之和)；\n- 随 K 增大，WSS 单调下降(K=N 时降为 0)，所以不能简单取\"WSS 最小的 K\"；\n- 画出 WSS 随 K 变化的曲线，曲线出现明显\"**拐点(肘部)**\"——即再增大 K 带来的 WSS 下降明显放缓的位置——对应的 K 即为较优选择。\n\n> 注意：PPT 中\"K with the least WSS is taken as the optimum\"的字面表述需谨慎理解。WSS 随 K 单调下降，真正要找的是**边际收益急剧减小的肘部**，而非绝对最小值。\n\n**轮廓系数(Silhouette Coefficient)**：另一种常用指标。对样本 $i$，$a(i)$ 为它到同簇其它样本的平均距离，$b(i)$ 为它到最近邻簇样本的平均距离，则\n$$s(i)=\\frac{b(i)-a(i)}{\\max\\{a(i),b(i)\\}}\\in[-1,1]$$\n值越接近 1 表示聚类越好。取使平均轮廓系数最大的 K。",
+      "tags": ["K值选择", "肘部法", "轮廓系数"]
+    },
+    {
+      "title": "K-means++初始化",
+      "content": "**K-means++** 是一种更好的种子选择方法，让初始质心彼此尽量分散，从而减少陷入次优的风险、加快收敛：\n1. 从数据点中**均匀随机**选取第一个中心；\n2. 对每个数据点 $x$，计算 $D(x)$ —— $x$ 到**已选中心中最近者**的距离；\n3. 以与 $D(x)^2$ **成正比**的加权概率，随机选取一个新数据点作为新中心；\n4. 重复第 2、3 步，直到选出 K 个中心；\n5. 之后照常运行标准 K-means。\n\n直觉：离已有中心越远的点，被选为下一个中心的概率越大($\\propto D(x)^2$)，使初始中心\"撒得开\"，覆盖不同簇区域，避免多个种子挤在一起。这通常显著改善最终聚类质量与收敛速度。",
+      "tags": ["K-means++", "初始化", "加权概率"]
+    },
+    {
+      "title": "应用、优缺点与对比(Pros/Cons & Comparison)",
+      "content": "**典型应用**：\n- **图像分割(Image Segmentation)**：按像素颜色聚类；\n- **图像压缩(Image Compression)**：用每个像素邻近的质心颜色替代原值，减少颜色数。\n\n**优点(Advantages)**：\n- **简单**：易于理解和实现；\n- **高效**：对样本数线性($O(Iknd)$)，是最流行的聚类算法之一。\n\n**缺点(Disadvantages)**：\n- 假设每个簇是**球形(sphere)** 且大小相近，对非球形/不同密度的簇效果差；\n- 只在**均值有定义**时适用(如纯类别型数据均值难定义)；\n- 需要用户**指定 K**；\n- 对**异常点(outliers)** 敏感(均值易被极端值拉偏)。\n\n**与其它聚类方法对比**：\n- **层次聚类(Hierarchical Clustering)**：不需预先指定 K，产生树状图(dendrogram)，可在任意层切割得到不同粒度的簇；但复杂度通常较高($O(n^2)$ 以上)。\n- **DBSCAN**：基于密度，能发现**任意形状**的簇并自动识别**噪声/异常点**，不需指定 K(需指定邻域半径与最小点数)；适合非球形、含噪声的数据。\n- 当我们**只知道样本间的两两距离**(而无坐标、均值难定义)时，K-means 不适用，可考虑 K-medoids 或基于距离的层次聚类。",
+      "tags": ["应用", "优缺点", "聚类对比"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "K-means属于以下哪一类机器学习任务？",
+      "options": ["监督学习中的分类", "监督学习中的回归", "无监督学习中的聚类", "强化学习"],
+      "answer": "C",
+      "explanation": "K-means不使用标签，目的是把无标签数据组织成相似性组(簇)，属于无监督学习中的聚类任务。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "在K-means中，每个簇的\"质心(centroid)\"被定义为什么？",
+      "options": ["簇内距离最大的样本", "簇内所有样本的均值(mean)", "随机选取的一个样本", "离原点最近的样本"],
+      "answer": "B",
+      "explanation": "K-means的质心是簇内所有样本向量的算术平均，这也是最小化簇内平方和时质心的解析最优解。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "K-means最小化的目标函数(簇内平方和SSE)是下列哪一个？",
+      "options": ["$J=\\sum_{k}\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2$", "$J=\\sum_{k}\\sum_{x\\in C_k}\\|x-\\mu_k\\|$", "$J=\\sum_{k}|C_k|$", "$J=\\max_k\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2$"],
+      "answer": "A",
+      "explanation": "K-means最小化所有样本到其所属质心的平方欧氏距离之和(SSE/WSS)，即选项A。它使用的是平方距离，而非一次距离。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "关于K-means的两步迭代，下列描述正确的是？",
+      "options": ["先更新质心，再固定质心初始化样本标签", "分配步把每个样本归到最近质心；更新步把质心设为簇内均值，两步交替", "只需更新质心一步即可收敛", "分配步随机给样本打标签，更新步随机移动质心"],
+      "answer": "B",
+      "explanation": "K-means交替执行分配步(argmin到最近质心)和更新步(质心=簇均值)，类似EM的E步与M步，每轮目标函数不增。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "设样本数为n、簇数为k、维度为d、迭代I轮，K-means的总体时间复杂度约为？",
+      "options": ["$O(n^2 d)$", "$O(Iknd)$", "$O(I k^2 n)$", "$O(2^k nd)$"],
+      "answer": "B",
+      "explanation": "分配步需O(knd)次距离计算，更新步O(nd)，迭代I轮得O(Iknd)。对样本数n线性，故称K-means为线性算法。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "为什么K-means只能保证收敛到局部最优，且结果可能不稳定？",
+      "options": ["因为目标函数不可导", "因为求全局最优是NP-hard，结果对随机初始质心(种子)敏感", "因为它不计算距离", "因为K值总是取错"],
+      "answer": "B",
+      "explanation": "K-means目标的全局最优是NP-hard，算法只保证收敛到局部最优；不同随机种子会得到不同结果，故对初始化敏感。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "K-means++初始化时，选取下一个中心的概率与什么成正比？",
+      "options": ["该点到已选中心的最近距离 $D(x)$", "该点到已选中心最近距离的平方 $D(x)^2$", "该点的特征向量模长", "完全均匀(每点等概率)"],
+      "answer": "B",
+      "explanation": "K-means++中，点x以正比于$D(x)^2$的概率被选为新中心(D(x)是到最近已选中心的距离)，使初始中心分散，减少陷入次优。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "下列哪些是K-means常见的收敛准则(满足其一即可停止)？",
+      "options": ["没有或极少样本被重新分配到不同簇", "质心不再(或极小)变化", "SSE的下降量低于阈值", "所有样本到质心的距离都为0"],
+      "answer": ["A", "B", "C"],
+      "explanation": "收敛可由\"无重分配\"\"质心不变\"\"SSE下降很小\"任一判定。D要求误差为0几乎不可能，且不是收敛准则。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "hard",
+      "stem": "关于K-means的缺点，下列哪些说法正确？",
+      "options": ["隐含假设簇是球形(各向同性)，对非球形簇效果差", "对异常点(outliers)敏感", "需要用户预先指定K", "能自动发现任意形状的簇并识别噪声点"],
+      "answer": ["A", "B", "C"],
+      "explanation": "K-means假设球形簇、对离群点敏感、需指定K；自动发现任意形状簇并识别噪声是DBSCAN的特性，不是K-means。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "关于用肘部法(Elbow Method)选择K，下列理解最准确的是？",
+      "options": ["直接取使WSS绝对最小的K", "取WSS-K曲线出现明显拐点(肘部)、即WSS下降明显放缓处的K", "取使WSS最大的K", "K越大越好，因为WSS随K增大"],
+      "answer": "B",
+      "explanation": "WSS随K单调下降(K=N时为0)，故不能取绝对最小。肘部法找曲线拐点：再增大K带来的WSS下降明显变缓处即为较优K。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "通过令簇内平方和对$\\mu_k$求导为零，可推出最优质心$\\mu_k$等于？",
+      "options": ["簇内样本的中位数", "簇内样本的均值 $\\frac{1}{|C_k|}\\sum_{x\\in C_k}x$", "簇内距离最远两点的中点", "全体数据的均值"],
+      "answer": "B",
+      "explanation": "对$\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2$求导置零得$\\sum(x-\\mu_k)=0$，故$\\mu_k$为簇内样本均值。这正是平方误差准则下质心取均值的原因。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "easy",
+      "stem": "K-means需要使用样本的标签(label)才能训练。",
+      "answer": false,
+      "explanation": "错误。K-means是无监督算法，完全不使用真实标签，仅依据样本间的距离/相似性进行聚类。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "在K-means的每次迭代中，目标函数SSE不会增大(单调不增)。",
+      "answer": true,
+      "explanation": "正确。分配步把样本归到最近质心、更新步取均值，两步都不会增大SSE，因此SSE单调不增，算法保证收敛(到局部最优)。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "DBSCAN和层次聚类都需要像K-means一样预先指定簇的个数K。",
+      "answer": false,
+      "explanation": "错误。DBSCAN基于密度、层次聚类产生树状图，二者都不需要预先指定K(DBSCAN需指定邻域半径和最小点数，层次聚类可在任意层切割)。"
+    },
+    {
+      "type": "short",
+      "difficulty": "hard",
+      "stem": "简述K-means对初始质心敏感会带来什么问题，并列举两种缓解方法。",
+      "answer": "**问题**：K-means只保证收敛到局部最优，全局最优是NP-hard。不同随机种子会导致不同的聚类结果，某些差的种子还会造成收敛缓慢或陷入明显次优的簇划分，结果不稳定。\n\n**缓解方法(任举两种)**：\n1. **多次随机重启(multiple restarts)**：用不同随机种子运行多次，保留SSE最小的结果；\n2. **K-means++初始化**：第一个中心均匀随机选取，之后以正比于$D(x)^2$的概率选新中心，使初始质心尽量分散，减少次优风险并加快收敛；\n3. 用启发式或其它聚类方法的结果来挑选\"好种子\"。"
+    }
+  ]
+}

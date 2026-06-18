@@ -1,0 +1,212 @@
+{
+  "id": "l6",
+  "title": "逻辑回归",
+  "subtitle": "Logistic Regression",
+  "summary": "本讲从判别函数(Discriminant Function)的视角引入线性分类器，直接建模决策边界(Decision Boundary)，并由感知机(Perceptron)的硬判决缺陷过渡到逻辑回归。逻辑回归用 Sigmoid 函数 $y=\\sigma(w^Tx+w_0)=\\frac{1}{1+e^{-(w^Tx+w_0)}}$ 估计后验概率 $P(C_1\\mid x)$，以交叉熵/对数似然为损失，用梯度下降训练，并自然推广到多分类的 Softmax 回归。",
+  "knowledgePoints": [
+    {
+      "title": "从生成式到判别式：为什么直接估计决策边界",
+      "content": "传统分类器各自依赖数据的某种结构来做决策：\n\n- **决策树**：靠数据**不纯度(impurity)**划分；\n- **贝叶斯分类**：靠**概率密度** $p(x\\mid C_i)$ 与先验 $P(C_i)$ 比较后验；\n- **K近邻**：靠样本间**距离**。\n\n核心质疑是：我们真的需要知道每类数据的完整结构(密度/距离/不纯度)吗？分类的最终目的只是把样本分到正确的一侧。\n\n> 判别式思想(Decision Boundaries Are All You Need)：**直接估计决策边界**，而不去费力建模每一类的完整概率分布。确定类间边界(判别)通常比估计类条件密度更容易、参数更少。\n\n- **生成式(generative)**：先学 $p(x\\mid C_i)$、$P(C_i)$，再用贝叶斯反推后验，建模整体数据分布。\n- **判别式(discriminative)**：直接学 $P(C_i\\mid x)$ 或边界 $g(x)$。逻辑回归正是典型的判别式模型。",
+      "tags": ["判别式模型", "决策边界", "动机"]
+    },
+    {
+      "title": "判别函数与决策规则",
+      "content": "对于 $c$ 个类别的分类问题，定义 $c$ 个**判别函数(discriminant function)** $g_i(x\\mid\\theta_i)$，每个函数刻画样本 $x$ 属于类别 $C_i$ 的程度，由一组参数 $\\theta_i$ 决定。\n\n**决策规则**：把 $x$ 分到使判别函数最大的那一类：\n$$\\text{assign }x\\to C_j\\quad\\text{if}\\quad g_j(x)>g_i(x),\\ \\forall i\\neq j$$\n\n以贝叶斯决策为例，判别函数有多种等价写法(对单调变换不变)：\n\n- $g_i(x)=P(C_i\\mid x)=\\dfrac{p(x\\mid C_i)P(C_i)}{\\sum_j p(x\\mid C_j)P(C_j)}$\n- $g_i(x)=p(x\\mid C_i)P(C_i)$\n- $g_i(x)=\\ln p(x\\mid C_i)+\\ln P(C_i)$\n\n**两类情形**可合并为单个判别函数 $g(x)=g_1(x)-g_2(x)$：\n\n- $g(x)>0\\Rightarrow C_1$，否则 $C_2$；\n- **决策边界**即 $g(x)=0$。",
+      "tags": ["判别函数", "决策规则", "二分类"]
+    },
+    {
+      "title": "线性判别函数与超平面几何",
+      "content": "**线性判别函数(Linear Discriminant Function)** 用线性函数刻画样本的类别归属——直观地说就是\"画一条线把数据分开\"：\n$$g(x)=w^Tx+w_0=w_1x_1+w_2x_2+\\dots+w_0$$\n\n**几何含义**：$g(x)=0$ 定义了一个**超平面(hyperplane)**，把输入空间切成两个半空间：\n\n- $g(x)>0$ 一侧为决策区域 $R_1$(判 $C_1$)；\n- $g(x)<0$ 另一侧为 $R_2$(判 $C_2$)；\n- 权向量 $w$ 与超平面**正交**，指向 $g(x)>0$ 的一侧。\n\n**优点**：\n\n- **简单(simplicity)**：时间与空间复杂度均为 $O(d)$；\n- **可理解(understandability)**：输出是属性的加权和；\n- **准确(accuracy)**：在一定假设满足时相当准确。\n\n这与线性规划中超平面约束 $a_i^Tx\\le b_i$ 的几何相通。",
+      "tags": ["线性判别", "超平面", "几何解释"]
+    },
+    {
+      "title": "感知机及其训练规则",
+      "content": "**感知机(Perceptron，感知机)** 是最早、最朴素的线性分类器，用 $g(x)=w^Tx+w_0$ 判定，预测取 $\\text{sign}[g(x)]$：$g(x)>0$ 判 $C_1$，否则 $C_2$。\n\n**标签约定**：$r\\in\\{+1,-1\\}$ 表示 $g(x)$ 应有的符号。给定数据集 $D=\\{(x^{(\\ell)},r^{(\\ell)})\\}_{\\ell=1}^N$。\n\n**训练(错误驱动)**：遍历每个样本，\n\n- 若 $r^{(\\ell)}g(x^{(\\ell)})\\le 0$，说明发生了**误分类**，则更新：\n$$w\\leftarrow w+\\eta\\, r^{(\\ell)}x^{(\\ell)}$$\n- 直观上是把超平面朝误分类点的方向\"推\"，直到训练集全部分类正确。\n\n```\nfor each (x, r) in D:\n    if r * g(x) <= 0:        # 误分类\n        w <- w + eta * r * x  # 朝该点修正\nrepeat until 全部正确\n```\n\n感知机依据新点落在超平面的哪一侧来分类。",
+      "tags": ["感知机", "错误驱动", "训练规则"]
+    },
+    {
+      "title": "感知机的局限：硬判决难以优化",
+      "content": "感知机输出是**硬判决(hard decision)**：只回答 $g(x)>0$ 吗?——\"是/否\"的 0-1 决策。\n\n问题在于：\n\n- 模型只能说\"$x$ 属于 $C_1$\"，**无法表达\"属于的程度\"**(到底有多确定?)；\n- 0-1 的阶跃决策**不可导、不连续**，难以用基于梯度的方法优化；\n- 对靠近边界的样本与远离边界的样本一视同仁。\n\n> 解决思路：引入**带不确定性的线性分类**——直接输出后验概率 $P(C_1\\mid x)=y$、$P(C_2\\mid x)=1-y$，用一个**平滑可导**的函数替代阶跃，使其便于优化。这正是逻辑回归的出发点。",
+      "tags": ["感知机", "硬判决", "局限"]
+    },
+    {
+      "title": "对数几率(Logit)与 Sigmoid 函数",
+      "content": "设后验 $P(C_1\\mid x)=y$，$P(C_2\\mid x)=1-y$。定义 $y$ 的**几率(odds)** 为 $\\dfrac{y}{1-y}$，其对数即 **对数几率/logit 函数**：\n$$\\text{logit}(y)=\\log\\frac{y}{1-y}$$\n\n**关键假设与结论**：若各类 $x$ 服从高斯分布(同协方差)，可推出后验的对数几率是输入 $x$ 的**线性组合(线性回归)**：\n$$\\log\\frac{y}{1-y}=w^Tx+w_0$$\n\n对它求逆，就得到 **Sigmoid(逻辑)函数**，它直接给出后验概率：\n$$y=\\sigma(z)=\\frac{1}{1+e^{-z}},\\qquad z=w^Tx+w_0$$\n\n- Sigmoid 是 logit 的**反函数**；\n- 它把任意实数 $z\\in(-\\infty,+\\infty)$ 平滑地压到 $(0,1)$，可解释为概率；\n- **平滑可导**，便于梯度优化，克服了感知机硬判决的缺点。\n\n> 一句话：\"对数几率是 $x$ 的线性函数\"⟺\"后验概率是 Sigmoid(线性函数)\"，这就是 Logistic Regression 名字里 logistic 的由来。",
+      "tags": ["Sigmoid", "对数几率", "logit"]
+    },
+    {
+      "title": "逻辑回归模型与预测",
+      "content": "**逻辑回归(Logistic Regression)** 是把决策边界估计为逻辑函数的分类器：\n$$y=\\sigma(w^Tx+w_0)=\\frac{1}{1+\\exp[-(w^Tx+w_0)]}$$\n\n通常令 $x_0=1$ 把偏置 $w_0$ 吸收进权向量，写成 $y=\\sigma(w^Tx)$。\n\n- **训练(Train)**：从数据估计参数 $w$ 和 $w_0$。\n- **测试(Test)**：对新样本计算 $y=\\sigma(w^Tx+w_0)$，若 $y>0.5$ 判 $C_1$，否则 $C_2$。$y$ 可解释为后验概率 $P(C_1\\mid x)$。\n\n> 注意：尽管叫\"回归\"，逻辑回归是**分类**模型。决策边界 $y=0.5$ 对应 $w^Tx+w_0=0$，仍是一个**线性超平面**；Sigmoid 只是把线性得分映射为概率，并不改变边界的线性本质。",
+      "tags": ["逻辑回归", "模型定义", "预测"]
+    },
+    {
+      "title": "交叉熵/对数似然损失",
+      "content": "模型输出 $y\\equiv p(C_1\\mid x)=\\sigma(w^Tx+w_0)$。设真实标签 $r\\in\\{0,1\\}$($r=1$ 表示 $x\\in C_1$，$r=0$ 表示 $x\\in C_2$)。\n\n**逐情形的目标**(最大化对数后验)：\n\n- 若 $r=1$：最大化 $\\log p(C_1\\mid x)=\\log y$，代价为 $-\\log y$；\n- 若 $r=0$：最大化 $\\log p(C_2\\mid x)=\\log(1-y)$，代价为 $-\\log(1-y)$。\n\n合并写成**交叉熵损失(cross-entropy loss)**：\n$$\\ell(w,w_0\\mid x,r)=-r\\log y-(1-r)\\log(1-y)$$\n其中第一项仅当 $r=1$ 非零，第二项仅当 $r=0$ 非零。\n\n**最大似然等价性**：$r\\mid x\\sim\\text{Bernoulli}(y)$，单样本似然\n$$p(r\\mid x)=y^{r}(1-y)^{1-r}=\\begin{cases}y,&r=1\\\\1-y,&r=0\\end{cases}$$\n对其取负对数即得上述交叉熵。因此\"最小化交叉熵\"与\"最大化伯努利似然\"是同一件事。\n\n> 交叉熵的一般定义 $CE(p,q)=-\\sum_x p(x)\\log q(x)$，这里 $p$ 是真实分布(one-hot)，$q$ 是模型预测分布。",
+      "tags": ["交叉熵", "对数似然", "损失函数"]
+    },
+    {
+      "title": "梯度推导与训练算法",
+      "content": "全体数据的损失：\n$$L(w,w_0\\mid D)=-\\sum_{\\ell=1}^{N}\\big[r^{(\\ell)}\\log y^{(\\ell)}+(1-r^{(\\ell)})\\log(1-y^{(\\ell)})\\big]$$\n\n**关键导数(链式法则)**。记 $a=w^Tx+w_0$，$y=\\sigma(a)$，利用 Sigmoid 的良好性质：\n$$\\frac{dy}{da}=y(1-y),\\qquad \\frac{\\partial a}{\\partial w_j}=x_j$$\n\n对 $w_j$ 求偏导：\n$$\\frac{\\partial L}{\\partial w_j}=-\\sum_\\ell\\Big(\\frac{r^{(\\ell)}}{y^{(\\ell)}}-\\frac{1-r^{(\\ell)}}{1-y^{(\\ell)}}\\Big)\\frac{\\partial y^{(\\ell)}}{\\partial a^{(\\ell)}}\\frac{\\partial a^{(\\ell)}}{\\partial w_j}$$\n\n代入 $\\frac{\\partial y}{\\partial a}=y(1-y)$ 后，分母被巧妙消去，得到极其简洁的结果：\n$$\\boxed{\\ \\frac{\\partial L}{\\partial w_j}=-\\sum_\\ell\\big(r^{(\\ell)}-y^{(\\ell)}\\big)x_j^{(\\ell)}\\ }$$\n\n**梯度下降更新**：\n$$w_{t+1}=w_t-\\eta_t\\frac{\\partial L}{\\partial w}=w_t+\\eta\\sum_\\ell (r^{(\\ell)}-y^{(\\ell)})x^{(\\ell)}$$\n\n> 直觉：梯度正比于\"误差 $(r-y)$ 乘以输入 $x$\"——预测越偏离真实，修正越大；这与线性回归的梯度形式惊人地一致(只是 $y$ 换成了 Sigmoid 输出)。\n\n```\n初始化 w_j ← rand(-0.01, 0.01)\nrepeat\n  Δw_j ← 0\n  for 每个样本 (x, r):\n    a ← Σ w_j x_j;  y ← sigmoid(a)\n    Δw_j ← Δw_j + (r - y) x_j\n  w_j ← w_j + η Δw_j\nuntil 收敛\n```",
+      "tags": ["梯度下降", "推导", "训练算法"]
+    },
+    {
+      "title": "逻辑回归 vs 线性回归",
+      "content": "二者形式相近但用途不同：\n\n| 维度 | 线性回归 | 逻辑回归 |\n|---|---|---|\n| 任务 | 回归(预测连续值) | 分类(预测类别) |\n| 模型输出 | $\\hat y=w^Tx+w_0\\in\\mathbb{R}$ | $y=\\sigma(w^Tx+w_0)\\in(0,1)$ |\n| 输出含义 | 目标数值 | 后验概率 $P(C_1\\mid x)$ |\n| 损失 | 均方误差(高斯/MLE) | 交叉熵(伯努利/MLE) |\n| 概率假设 | $r\\mid x\\sim$ 高斯 | $r\\mid x\\sim$ 伯努利 |\n| 决策边界 | —— | $y=0.5$ 即线性超平面 |\n\n**共同点**：\n\n- 都是广义线性模型，核心都是线性得分 $w^Tx+w_0$；\n- 梯度形式都为 $\\sum(r-\\hat y)x$ 的样子，区别只在 $\\hat y$ 是否经过 Sigmoid；\n- 都用最大似然/梯度下降求解。\n\n> 关键区别：线性回归直接输出线性值并配 MSE；逻辑回归在线性得分外套一层 Sigmoid 得到概率，并配交叉熵——若对分类强用 MSE，会因 Sigmoid 饱和导致梯度消失、非凸难优化。",
+      "tags": ["对比", "线性回归", "广义线性模型"]
+    },
+    {
+      "title": "Softmax 函数与多分类",
+      "content": "二分类用 Sigmoid，多分类($K$ 类，目标 $r\\in\\{1,\\dots,K\\}$)需要把多个得分统一转成概率分布。**Softmax 函数**：\n$$y_i=\\text{softmax}(a_1,\\dots,a_K)_i=\\frac{e^{a_i}}{\\sum_{j=1}^{K}e^{a_j}}$$\n其中 $a_i=W_i x+w_{i0}$ 称为 **logits(得分)**，$W_i,w_{i0}$ 是可训练参数。\n\n**性质**：\n\n- 把任意实数向量 logits 转成一个**概率分布**($y_i\\ge0$ 且 $\\sum_i y_i=1$)；\n- 不需要选定参考类，**对各类对称处理**；\n- **为什么叫 softmax?** 当某个 $a_k$ 远大于其它时，softmax 近似于 argmax 的平滑版(其实更像\"soft-argmax\")。\"max\"是因为它放大最大 logit 的概率，\"soft\"是因为仍给较小的 $a_j$ 分配一些概率；\n- 关键优势是**可微**，便于梯度优化；\n- $K=2$ 时 Softmax 退化为 Sigmoid。",
+      "tags": ["Softmax", "多分类", "logits"]
+    },
+    {
+      "title": "Softmax 回归：损失与梯度",
+      "content": "**Softmax 回归(Softmax Regression)** 用 Softmax 估计各类后验：\n$$y_i=\\frac{\\exp[w_i^Tx+w_{i0}]}{\\sum_{j=1}^{K}\\exp[w_j^Tx+w_{j0}]},\\quad i=1,\\dots,K$$\n测试时选 $y_i=\\max\\{y_1,\\dots,y_K\\}$ 的类 $C_i$。\n\n**损失**：标签为 **one-hot 向量** $r=(r_1,\\dots,r_K)$($r_i=1$ 若 $x\\in C_i$)。交叉熵损失：\n$$L_{CE}(y,r)=-\\sum_{i=1}^{K}r_i\\log y_i=-r^T(\\log y)$$\n由于 $r$ 是 one-hot，实际只有真实类那一项 $-\\log y_{真实类}$ 起作用。\n\n**梯度**。利用 Softmax 导数 $\\frac{\\partial y_i}{\\partial a_k}=y_i(\\delta_{ik}-y_k)$ 与约束 $\\sum_i r_i=1$，可推出与逻辑回归同样优美的形式：\n$$\\frac{\\partial L}{\\partial w_i}=\\sum_\\ell\\big(y_i^{(\\ell)}-r_i^{(\\ell)}\\big)x^{(\\ell)},\\qquad \\Delta w_{ij}\\mathrel{+}=(r_i^{(\\ell)}-y_i^{(\\ell)})x_j^{(\\ell)}$$\n\n> 二分类逻辑回归是 Softmax 回归在 $K=2$ 时的特例；二者梯度都是\"(预测概率 − 真实标签) × 输入\"。",
+      "tags": ["Softmax回归", "交叉熵", "梯度"]
+    },
+    {
+      "title": "线性分类器的局限",
+      "content": "逻辑回归/Softmax 回归本质上仍是**线性分类器**，存在固有局限：\n\n- **要求数据线性可分(linearly separable)**：决策边界是超平面，对异或(XOR)等非线性可分数据无能为力；\n- **解不唯一**：即便数据线性可分，能完美分开的超平面**有很多**，逻辑回归并不保证选到\"最好\"的那一个(例如离两类都最远的边界)。\n\n> 承上启下：这两个问题分别指向后续课题——用**核技巧/特征映射**处理非线性，用**支持向量机(SVM)** 寻找**最大间隔(maximum margin)** 的唯一最优边界。",
+      "tags": ["局限", "线性可分", "承上启下"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "逻辑回归中用于把线性得分 $z=w^Tx+w_0$ 映射为后验概率的函数是？",
+      "options": ["阶跃函数 $\\text{sign}(z)$", "Sigmoid 函数 $\\sigma(z)=\\frac{1}{1+e^{-z}}$", "ReLU 函数 $\\max(0,z)$", "恒等函数 $z$"],
+      "answer": "B",
+      "explanation": "逻辑回归用 Sigmoid(逻辑)函数把 $(-\\infty,+\\infty)$ 的线性得分平滑压缩到 $(0,1)$，得到 $P(C_1\\mid x)$。阶跃函数是感知机的硬判决，不可导；恒等函数对应线性回归。",
+      "tags": ["Sigmoid"]
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "在二分类逻辑回归中，对新样本通常以什么阈值判为 $C_1$？",
+      "options": ["$y>0$", "$y>0.5$", "$y>1$", "$z>1$"],
+      "answer": "B",
+      "explanation": "$y=\\sigma(w^Tx+w_0)$ 是后验概率，$y>0.5$ 等价于 $w^Tx+w_0>0$，故以 $0.5$ 为阈值判 $C_1$，对应决策边界 $w^Tx+w_0=0$。",
+      "tags": ["预测", "决策边界"]
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "逻辑回归损失对参数的梯度 $\\frac{\\partial L}{\\partial w_j}$ 等于下列哪一项？",
+      "options": ["$-\\sum_\\ell (r^{(\\ell)}-y^{(\\ell)})x_j^{(\\ell)}$", "$\\sum_\\ell (r^{(\\ell)}-y^{(\\ell)})^2 x_j^{(\\ell)}$", "$-\\sum_\\ell r^{(\\ell)}\\log y^{(\\ell)}$", "$\\sum_\\ell y^{(\\ell)}(1-y^{(\\ell)})$"],
+      "answer": "A",
+      "explanation": "利用 $\\frac{dy}{da}=y(1-y)$，交叉熵对 $w_j$ 求导后分母被消去，得到简洁形式 $\\frac{\\partial L}{\\partial w_j}=-\\sum_\\ell(r^{(\\ell)}-y^{(\\ell)})x_j^{(\\ell)}$，即\"误差乘输入\"。",
+      "tags": ["梯度", "推导"]
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "关于 Sigmoid 函数 $\\sigma(a)$ 的导数，下列正确的是？",
+      "options": ["$\\sigma'(a)=\\sigma(a)$", "$\\sigma'(a)=1-\\sigma(a)$", "$\\sigma'(a)=\\sigma(a)(1-\\sigma(a))$", "$\\sigma'(a)=-\\sigma(a)^2$"],
+      "answer": "C",
+      "explanation": "$\\sigma'(a)=\\sigma(a)(1-\\sigma(a))=y(1-y)$。正是这一性质使交叉熵的梯度化简为 $(r-y)x$ 的形式。",
+      "tags": ["Sigmoid", "导数"]
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "逻辑回归的对数几率(logit)与输入 $x$ 的关系是？",
+      "options": ["$\\log\\frac{y}{1-y}=w^Tx+w_0$，是线性关系", "$\\frac{y}{1-y}=w^Tx+w_0$，是线性关系", "$y=w^Tx+w_0$，是线性关系", "$\\log y=w^Tx+w_0$，是线性关系"],
+      "answer": "A",
+      "explanation": "逻辑回归的核心假设是后验的对数几率(log odds) $\\log\\frac{y}{1-y}$ 是输入的线性组合 $w^Tx+w_0$。对其求逆即得 Sigmoid。注意是对数几率线性，而非几率本身或 $y$ 本身线性。",
+      "tags": ["对数几率", "logit"]
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "下列关于感知机局限性的描述，最准确的是？",
+      "options": ["参数太多，训练慢", "输出是 0-1 硬判决，无法表达确定程度且不可导难优化", "只能用于回归任务", "无法处理线性可分数据"],
+      "answer": "B",
+      "explanation": "感知机输出 $\\text{sign}[g(x)]$ 的硬判决，既无法表达\"属于某类的程度\"，又因阶跃不可导而难以梯度优化。逻辑回归用平滑的 Sigmoid 输出概率来克服这一点。",
+      "tags": ["感知机", "局限"]
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "Softmax 函数 $y_i=\\frac{e^{a_i}}{\\sum_j e^{a_j}}$ 的作用是？",
+      "options": ["把 logits 归一化为一个概率分布($y_i\\ge0,\\sum_i y_i=1$)", "把概率转回 logits", "对输入做线性变换", "选出最大的 logit 并置 1，其余置 0"],
+      "answer": "A",
+      "explanation": "Softmax 把任意实数 logits 转成概率分布，所有分量非负且和为 1，对各类对称处理。它是 argmax 的平滑可微近似(soft-argmax)，并非硬性 one-hot 选择。",
+      "tags": ["Softmax", "多分类"]
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "关于逻辑回归与线性回归的比较，下列说法错误的是？",
+      "options": ["两者核心都是线性得分 $w^Tx+w_0$", "逻辑回归用交叉熵损失，对应伯努利似然", "线性回归用均方误差损失，对应高斯似然", "逻辑回归输出可直接当作连续目标值用于回归预测"],
+      "answer": "D",
+      "explanation": "逻辑回归输出 $y\\in(0,1)$ 是后验概率，用于分类而非预测连续目标值。其余三项正确：两者都是广义线性模型，分别配交叉熵(伯努利)与 MSE(高斯)。",
+      "tags": ["对比", "线性回归"]
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "Softmax 回归的损失对参数的梯度形式 $\\frac{\\partial L}{\\partial w_i}$ 为？(其中 $r$ 为 one-hot 标签)",
+      "options": ["$\\sum_\\ell (y_i^{(\\ell)}-r_i^{(\\ell)})x^{(\\ell)}$", "$\\sum_\\ell (y_i^{(\\ell)})^2 x^{(\\ell)}$", "$\\sum_\\ell r_i^{(\\ell)}\\log y_i^{(\\ell)}$", "$\\sum_\\ell y_i^{(\\ell)}(1-y_i^{(\\ell)})x^{(\\ell)}$"],
+      "answer": "A",
+      "explanation": "利用 Softmax 导数 $\\frac{\\partial y_i}{\\partial a_k}=y_i(\\delta_{ik}-y_k)$ 与 $\\sum_i r_i=1$，梯度化简为 $(y_i-r_i)x$，即\"预测概率减真实标签乘输入\"，与逻辑回归形式一致。",
+      "tags": ["Softmax回归", "梯度"]
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "easy",
+      "stem": "尽管名字里有\"回归\"，逻辑回归实际上是一个分类模型。",
+      "answer": true,
+      "explanation": "逻辑回归用 Sigmoid 输出后验概率并以 0.5 为阈值判类，是判别式分类模型。\"回归\"指其建模对数几率为输入的线性回归这一形式。",
+      "tags": ["概念辨析"]
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "当类别数 $K=2$ 时，Softmax 回归退化为二分类逻辑回归。",
+      "answer": true,
+      "explanation": "$K=2$ 时 Softmax 可化简为 Sigmoid，逻辑回归是 Softmax 回归的特例。二者的梯度都是\"(预测−标签)×输入\"的统一形式。",
+      "tags": ["Softmax", "逻辑回归", "关系"]
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "逻辑回归的决策边界是非线性的曲面。",
+      "answer": false,
+      "explanation": "错误。决策边界对应 $y=0.5$ 即 $w^Tx+w_0=0$，是一个线性超平面。Sigmoid 只把线性得分映射为概率，并不改变边界的线性本质，因此逻辑回归仍是线性分类器。",
+      "tags": ["决策边界", "线性分类器"]
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "下列关于交叉熵损失 $\\ell=-r\\log y-(1-r)\\log(1-y)$ 的说法，正确的有哪些？",
+      "options": ["当 $r=1$ 时损失退化为 $-\\log y$", "它等价于对伯努利似然取负对数", "当 $r=0$ 时损失退化为 $-\\log(1-y)$", "它与均方误差损失完全等价"],
+      "answer": ["A", "B", "C"],
+      "explanation": "A、C 由 one-hot 性质直接得到；B 是因为 $p(r\\mid x)=y^r(1-y)^{1-r}$ 取负对数即交叉熵，故最小化交叉熵等价于最大似然。D 错误，交叉熵与 MSE 不等价，对分类用 MSE 会导致梯度消失等问题。",
+      "tags": ["交叉熵", "似然"]
+    },
+    {
+      "type": "multiple",
+      "difficulty": "hard",
+      "stem": "关于线性分类器(含逻辑回归)的局限，下列正确的有哪些？",
+      "options": ["要求数据线性可分，无法处理 XOR 等非线性可分数据", "即使线性可分，能分开数据的超平面也可能有很多个", "决策边界总是唯一且最优的", "SVM 通过最大化间隔来选出更优的边界"],
+      "answer": ["A", "B", "D"],
+      "explanation": "A、B 是线性分类器的固有局限：依赖线性可分且解不唯一。D 正确，SVM 通过最大间隔(maximum margin)选出唯一最优边界。C 错误，逻辑回归并不保证边界唯一或最优。",
+      "tags": ["局限", "SVM"]
+    },
+    {
+      "type": "short",
+      "difficulty": "medium",
+      "stem": "简述为什么 Softmax 函数被称为\"softmax\"，以及它相比硬性 argmax 的优势。",
+      "answer": "**名称含义**：当某个 logit $a_k$ 远大于其它时，$\\text{softmax}(a_1,\\dots,a_K)$ 近似于 argmax 的平滑版本(更确切说是 soft-argmax)。\n\n- \"**max**\"：它放大最大 logit 对应类的概率，行为类似取最大；\n- \"**soft**\"：它不是硬性地把最大项置 1、其余置 0，而是仍给较小的 $a_j$ 分配一些(非零)概率，输出是平滑的概率分布。\n\n**相比 argmax 的优势**：硬性 argmax 不可导，无法用梯度方法优化；而 Softmax **处处可微**，可以与交叉熵损失配合做端到端的梯度下降训练。",
+      "tags": ["Softmax", "可微性"]
+    },
+    {
+      "type": "short",
+      "difficulty": "hard",
+      "stem": "请说明从对数几率假设到 Sigmoid 的推导思路，并写出逻辑回归参数 $w_j$ 的梯度结果。",
+      "answer": "**推导思路**：\n\n1. 设后验 $P(C_1\\mid x)=y$，$P(C_2\\mid x)=1-y$，定义几率 $\\frac{y}{1-y}$。\n2. 在类条件高斯(同协方差)假设下，可推出对数几率是输入的线性函数：$\\log\\frac{y}{1-y}=w^Tx+w_0$。\n3. 对该式求逆(解出 $y$)即得 Sigmoid：$y=\\sigma(w^Tx+w_0)=\\frac{1}{1+e^{-(w^Tx+w_0)}}$，直接给出后验概率。\n\n**梯度结果**：以交叉熵为损失 $L=-\\sum_\\ell[r^{(\\ell)}\\log y^{(\\ell)}+(1-r^{(\\ell)})\\log(1-y^{(\\ell)})]$，记 $a=w^Tx+w_0$，利用 $\\frac{dy}{da}=y(1-y)$ 与 $\\frac{\\partial a}{\\partial w_j}=x_j$，链式法则化简后分母消去，得：\n$$\\frac{\\partial L}{\\partial w_j}=-\\sum_\\ell\\big(r^{(\\ell)}-y^{(\\ell)}\\big)x_j^{(\\ell)}$$\n相应的梯度下降更新为 $w_{t+1}=w_t+\\eta\\sum_\\ell(r^{(\\ell)}-y^{(\\ell)})x^{(\\ell)}$，直觉是\"误差 $(r-y)$ 乘输入 $x$\"。",
+      "tags": ["推导", "梯度", "Sigmoid"]
+    }
+  ]
+}

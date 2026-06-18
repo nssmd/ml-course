@@ -1,0 +1,274 @@
+{
+  "id": "review",
+  "title": "期末复习",
+  "subtitle": "Final Review",
+  "summary": "本讲是全课程要点串讲，串联监督学习、神经网络与深度学习、无监督与生成模型、强化学习四大板块，梳理高频考点、核心公式与易混辨析。",
+  "knowledgePoints": [
+    {
+      "title": "机器学习总览：四要素与考试形式",
+      "content": "机器学习是用统计方法、从数据中改进以达成目标、无需人工显式编程的 AI 子领域。\n\n**四要素 (Key Elements)**：\n1. **数据 Data**（经验 Experience）\n2. **模型 Model**（假设 Hypothesis）\n3. **损失函数 Loss Function**（目标 Objective）\n4. **优化 Optimization**（改进 Improvement）\n\n> 考试为**开卷**（可带任何纸质资料）、中文作答、可带计算器；题型含判断、选择、简答、计算、系统设计。\n\n**学习记忆框架**：拿到任何一个模型（如 SVM、逻辑回归、DQN）都可以按「假设/模型形式 → 损失函数 → 优化方法」三段式去对比记忆。",
+      "tags": ["总览", "四要素", "考试"]
+    },
+    {
+      "title": "过拟合与欠拟合：诊断与防治",
+      "content": "- **欠拟合 Underfitting**：模型不够复杂，无法捕捉真实规律，假设可能不成立 → 训练误差和测试误差都高。\n- **过拟合 Overfitting**：模型太复杂，把数据细节（如随机噪声）也学进来，而非底层规律 → 训练误差很低但测试误差高。\n\n随复杂度增大，训练误差单调下降，而测试误差先降后升，呈 U 形，最优点在中间（**合适复杂度**）。\n\n**防止过拟合的常用手段**：\n1. 增加训练数据\n2. **正则化**（惩罚模型复杂度，如 $L_1/L_2$）\n3. **留出法 / 交叉验证**（用未见数据评估泛化）\n4. **早停 Early Stopping**\n5. 引入先验知识（如贝叶斯先验）\n\n> 易混点：增加模型复杂度、减小正则化系数会**加重**过拟合；它们是欠拟合时才用的手段。",
+      "tags": ["过拟合", "正则化", "泛化"]
+    },
+    {
+      "title": "决策树与 ID3：信息增益计算",
+      "content": "决策树自顶向下、分而治之：构造含全部数据的根 → 按某准则选最有利属性 → 按属性取值划分子集 → 为每个子集建子节点 → 递归直到停止。\n\n**ID3 用信息增益选属性**。数据集熵：\n$$H(D) = -\\sum_{k=1}^{K} \\frac{|C_k|}{|D|} \\log \\frac{|C_k|}{|D|}$$\n条件熵（按属性 $A$ 划分后）：\n$$H(D|A) = \\sum_{i=1}^{n} \\frac{|D_i|}{|D|} H(D_i)$$\n信息增益：\n$$\\mathrm{Gain}(D,A) = H(D) - H(D|A)$$\n\n**计算示例**（PPT 样例）：根节点 $H(D)\\approx 0.91$，划分后 $H(D|A=1)=0$、$H(D|A=2)\\approx 1$，信息增益即用 $H(D)$ 减去加权条件熵。\n\n> 易混：信息增益越大越好（选它划分）；纯节点熵为 0。ID3 偏向取值多的属性，C4.5 用信息增益率纠正。",
+      "tags": ["决策树", "ID3", "信息增益"]
+    },
+    {
+      "title": "朴素贝叶斯：条件独立假设",
+      "content": "贝叶斯分类目标（MAP）：\n$$c_{MAP} = \\arg\\max_{c} P(x_1,\\dots,x_d|c)\\,P(c)$$\n直接估计联合概率 $P(x_1,\\dots,x_d|c)$ 参数量巨大、不可行。\n\n**朴素贝叶斯的核心：条件独立假设**——给定类别 $c$，各特征相互独立：\n$$P(x_1,\\dots,x_d|c) \\approx \\prod_{j=1}^{d} P(x_j|c)$$\n于是\n$$c_{NB} = \\arg\\max_{c} P(c)\\prod_{j=1}^{d} P(x_j|c)$$\n训练即从数据估计 $P(c)$ 与各 $P(x_j|c)$：\n$$\\hat P(c) = \\frac{\\mathrm{count}(C=c)}{N}, \\quad \\hat P(x_i|c) = \\frac{\\mathrm{count}(x_i,c)}{\\sum_{x}\\mathrm{count}(x,c)}$$\n\n> 朴素贝叶斯把指数级参数降为线性级，是其「朴素」的代价与好处；实践中常配合拉普拉斯平滑避免零概率。",
+      "tags": ["朴素贝叶斯", "条件独立", "生成式"]
+    },
+    {
+      "title": "K-NN：决策边界与 K 的作用",
+      "content": "K 近邻按「**多数投票**」分类：用距离函数找 $k$ 个最近邻，取其中最常见类别。属于**惰性学习**（无显式训练，全部计算在预测时）。\n\n**决策边界**：\n- $K=1$ 时由 **Voronoi 分割（维诺图）** 给出，每个区域归属最近的训练点；边界是到两个不同类训练点等距的点。\n- 数据多且标签有噪声时，$K=1$ 边界会非常「破碎」。\n\n**K 的影响**：\n- $K$ 越大，边界越**平滑**（抗噪声、偏差增大）。\n- $K=N$ 时永远预测**多数类**。\n\n> 易混：$K$ 太小→过拟合（对噪声敏感）；$K$ 太大→欠拟合（边界过平滑）。K-NN 无参数但预测开销大、依赖距离度量。",
+      "tags": ["KNN", "Voronoi", "决策边界"]
+    },
+    {
+      "title": "线性判别 / 逻辑回归 / Softmax 回归对比",
+      "content": "**线性判别函数**：$g_i(x)=w_i^T x + w_{i0}$，若 $g_1(x)>g_2(x)$ 判 $C_1$。优点：$O(d)$ 时空复杂度、可解释（加权和）、假设满足时准确。\n\n**Sigmoid / 逻辑回归**（二分类）：从 log-odds（logit）线性出发\n$$\\log\\frac{y}{1-y} = w^T x + w_0 \\;\\Rightarrow\\; y = \\frac{1}{1+\\exp[-(w^T x + w_0)]}$$\n$y=P(C_1|x)$ 是后验概率，Sigmoid 平滑、便于优化。\n\n**Softmax 回归**（多分类）：\n$$y_i = \\frac{\\exp(w_i^T x + w_{i0})}{\\sum_{j=1}^{K}\\exp(w_j^T x + w_{j0})}$$\n输出归一化的类别概率，选概率最大类。\n\n> 对比：逻辑回归是 Softmax 在 $K=2$ 时的特例；两者输出都可解释为后验概率，区别在二分类 vs 多分类。",
+      "tags": ["逻辑回归", "Softmax", "线性分类"]
+    },
+    {
+      "title": "各损失函数汇总：交叉熵的二分类与多分类形式",
+      "content": "**二分类交叉熵**（逻辑回归），$r\\in\\{0,1\\}$：\n$$\\ell(w,w_0|x,r) = -r\\log y - (1-r)\\log(1-y)$$\n来源：$r=1$ 时最大化 $\\log y$，$r=0$ 时最大化 $\\log(1-y)$，等价于最大化伯努利似然 $p(r|x)=y^r(1-y)^{1-r}$。\n\n**多分类交叉熵**（Softmax），$r$ 为 one-hot：\n$$L_{CE}(y,r) = -\\sum_{i=1}^{K} r_i \\log y_i = -r^T(\\log y)$$\n\n**回归常用**：均方误差 $\\frac12\\|\\hat y - r\\|^2$（如 DQN/Critic 的值回归）。\n\n> 关键认识：**交叉熵 = 最大似然 = 最小化 KL 散度**。$CE(p,q)=\\mathbb{E}_{x\\sim p}\\log\\frac{1}{q(x)}=-\\sum_x p(x)\\log q(x)$。",
+      "tags": ["损失函数", "交叉熵", "最大似然"]
+    },
+    {
+      "title": "SVM：最大间隔与约束优化",
+      "content": "SVM 寻找**最大间隔**超平面。规范化使支持向量满足 $w^Tx+w_0=\\pm 1$。两个最近异类点 $x^{(1)},x^{(2)}$ 满足 $w^T(x^{(1)}-x^{(2)})=2$，间隔为\n$$\\mathrm{margin} = \\frac{w^T(x^{(1)}-x^{(2)})}{\\|w\\|} = \\frac{2}{\\|w\\|}$$\n最大化间隔 ⟺ 最小化 $\\frac12\\|w\\|^2$。\n\n**约束优化形式**：\n$$\\min_{w}\\; \\frac{1}{2}\\|w\\|^2 \\quad \\text{s.t.}\\; y^{(\\ell)}(w^T x^{(\\ell)}+w_0)\\ge 1,\\ \\ell=1,\\dots,N$$\n这是一个**二次规划 (QP)**，属于凸优化，复杂度依赖输入维度 $d$。\n\n> 易混：约束 $y^{(\\ell)}(w^Tx^{(\\ell)}+w_0)\\ge 1$ 统一了两类（$y=\\pm1$）。最大化间隔对应最小化 $\\|w\\|$（不是最大化）。",
+      "tags": ["SVM", "最大间隔", "凸优化"]
+    },
+    {
+      "title": "神经网络与反向传播：前向缓存 + 误差回传",
+      "content": "感知机是神经元的基本建模：输入函数 $a=\\sum_j w_j x_j$，激活函数 $y=\\sigma(a)$。单层只能线性可分；**加隐藏层**可学习非线性映射，每个隐单元负责一条线性边界。\n\n**反向传播 = 链式法则**，分两步：\n- **前向 Forward Pass**：对每个权重预先算出 $\\partial a/\\partial w = $ 连到该权重的输入 $z$（线性单元梯度固定、易算）。\n- **反向 Backward Pass**：递归计算每个线性输出的 $\\partial l/\\partial a$。\n$$\\frac{\\partial l}{\\partial w} = \\frac{\\partial a}{\\partial w}\\cdot\\frac{\\partial l}{\\partial a} = z\\cdot\\frac{\\partial l}{\\partial a}$$\n\n**误差传播视角**（误差信号 $\\delta$）：\n$$\\delta^L = \\sigma'(z^L)\\odot \\nabla_y \\mathrm{Loss}, \\qquad \\delta^l = \\sigma'(z^l)\\odot (W^{l+1})^T \\delta^{l+1}$$\n\n> 记忆：$\\partial l/\\partial w$ = （前向缓存的输入 $z$）×（反向传来的误差 $\\delta$）。",
+      "tags": ["神经网络", "反向传播", "链式法则"]
+    },
+    {
+      "title": "深度学习核心思想：可训练特征与层次表示",
+      "content": "- **传统 ML**：人工设计/固定特征 + 可训练分类器。\n- **深度学习**：**可训练特征提取器 + 可训练分类器**（端到端）。\n\n**层次表示 (Hierarchical Representations)**：低层特征 → 中层特征 → 高层特征，逐层抽象、模块化（modularization），且模块自动从数据中学到。\n\n**深 vs 浅**（同参数量下，深网络通常更优）：深网络通过模块复用，能用更少数据/参数表达复杂函数。\n\n**词嵌入 Word Embedding**：把词表示为低维稠密向量，编码语义相似性（相比 one-hot 稀疏正交）。Word2Vec（CBOW / Skip-gram）通过「中心词 ↔ 上下文词」的向量相似度预测来学习，是分布式表示。\n\n> 易混：one-hot 各词正交（无相似性）；嵌入向量距离反映语义近似。",
+      "tags": ["深度学习", "表示学习", "词嵌入"]
+    },
+    {
+      "title": "序列建模：RNN → Attention → Transformer",
+      "content": "**语言模型**：给序列打概率 $p(x)=p(w_1,\\dots,w_N)$，应用于补全、纠错、翻译、语音识别。纯计数法离散、无语义、对相似句不敏感。\n\n**RNN**：复用隐藏状态存历史，$h_t = f_W(h_{t-1}, x_t)$，**每个时间步共享同一组参数**。可做序列生成、Encoder-Decoder（seq2seq）。\n\n**注意力 Attention**：解决固定编码向量的瓶颈，解码时动态生成上下文 $c_i=\\sum_j \\alpha_{ij}h_j$，权重\n$$\\alpha_{ij} = \\frac{\\exp(a(s_{i-1},h_j))}{\\sum_k \\exp(a(s_{i-1},h_k))}$$\n\n**自注意力 Self-Attention**：每个词关注所有词，$Q=W_q H,\\,K=W_k H,\\,V=W_v H$：\n$$H' = \\mathrm{softmax}\\!\\left(\\frac{QK^T}{\\sqrt{d}}\\right)V$$\n\n**Transformer**：多头自注意力 + 前馈 + Add&Norm + 位置编码；解码器用 **Masked** 多头注意力（只看已生成部分）。预训练语言模型 = 大规模无监督预训练 + 下游有监督微调。",
+      "tags": ["RNN", "Attention", "Transformer"]
+    },
+    {
+      "title": "CNN：卷积动机、输出尺寸与分割检测",
+      "content": "MLP 处理图像的问题：破坏空间结构、对局部不敏感、平移不变性差、参数过多。\n\n**卷积的核心**：局部连接（每个隐单元只看局部 patch）+ **权值共享**，保留空间信息、减少参数。3-D 卷积核**贯穿输入全部通道**；$n$ 个滤波器产生 $n$ 张特征图（activation map）。\n\n**输出尺寸公式**（务必会算）：\n$$\\text{output} = \\frac{N + 2P - F}{\\text{stride}} + 1$$\n例：$N=7, F=3$，stride 1 → 7；stride 2 → 4；stride 3 → 3。\n\n**应用**：语义分割（逐像素分类，下采样+上采样，转置卷积/反卷积上采样，U-Net 用跳跃连接）；目标检测（Fast R-CNN 先过卷积再裁剪 ROI）；ViT（图像切 16×16 patch 喂 Transformer）。\n\n> 高频计算题：给定 $N,F,P,\\text{stride}$ 求输出特征图尺寸。",
+      "tags": ["CNN", "卷积", "输出尺寸"]
+    },
+    {
+      "title": "无监督学习：K-means、PCA、自编码器",
+      "content": "无监督三大方向：**聚类**（K-means、GMM）、**降维**（PCA、自编码器）、**生成**（GAN、VAE、Diffusion）。\n\n**K-means** 步骤：①随机选 $k$ 个种子为初始质心 ②每点分到最近质心 ③用当前成员重算质心（均值）④重复②③直至收敛。\n\n**PCA**：找方差最大的方向。投影方差 $\\mathrm{var}(u^TX)=u^TSu$，$S=\\frac1N XX^T$ 为协方差。优化：\n$$\\max_u u^T S u \\quad \\text{s.t.}\\; u^Tu=1$$\n拉格朗日求解得 $Su=\\lambda u$ → **特征分解**：取 $k$ 个最大特征值对应的特征向量为主成分；特征值 = 投影方差，特征向量正交。\n\n**自编码器 Auto-encoder**：encoder→瓶颈隐层（latent code）→decoder，用**重构损失**强迫学到压缩表示。\n\n> 易混：PCA 是线性降维、解析解（特征分解）；自编码器可非线性、靠梯度训练。K-means 对初始化敏感、可能陷局部最优。",
+      "tags": ["无监督", "PCA", "K-means", "自编码器"]
+    },
+    {
+      "title": "生成模型：GAN 与扩散模型",
+      "content": "生成目标：学到 $p_{model}(x)$ 逼近 $p_{data}(x)$。\n\n**GAN**：生成器 $G$ 把噪声 $z\\sim N(0,I)$ 变为复杂分布 $P_G$；判别器 $D$ 区分真假。极小极大博弈：\n$$\\min_G \\max_D V(G,D) = \\mathbb{E}_{x\\sim P_{data}}[\\log D(x)] + \\mathbb{E}_{z\\sim P_z}[\\log(1-D(G(z)))]$$\n$D$ 最大化（分辨真假），$G$ 最小化（骗过 $D$）。全局最优时 $G$ 重现真实分布。CycleGAN 用循环一致（重构 $L_2$）损失保持内容。\n\n**扩散模型 Diffusion**：\n- **前向加噪**（固定）：逐步给 $x_0$ 加高斯噪声 $\\beta_t$，$x_0\\to x_T$（噪声）。\n- **反向去噪**（可训练）：用神经网络（U-Net / 去噪自编码器）逐步从 $x_t$ 预测 $x_{t-1}$ 的 $\\mu,\\sigma^2$，$x_T\\to x_0$。\n\n> 易混：GAN 是对抗训练、易模式坍塌；扩散稳定但采样慢。前向过程无参数，反向过程才训练。",
+      "tags": ["生成模型", "GAN", "扩散模型"]
+    },
+    {
+      "title": "强化学习基础：回报、Q、V 与 DQN",
+      "content": "RL 从与环境交互中学习：状态 $S$、动作 $A$、转移规则、奖励规则，目标是学策略（状态→动作）使**长期回报**最大。\n\n**折扣回报**：$R_t = \\sum_{i=t}^{\\infty} \\gamma^{i-t} r_i = r_t + \\gamma r_{t+1} + \\dots$\n\n**Q 函数**（状态-动作价值）满足贝尔曼递归：\n$$Q(s_t,a_t) = \\mathbb{E}[R_t|s_t,a_t] = r_t + \\gamma\\, Q(s_{t+1},a_{t+1})$$\n**状态值函数**：$V^\\pi(s)=\\mathbb{E}[R_t|s]$，TD 误差 $\\delta = r + \\gamma V^\\pi(s_{t+1}) - V^\\pi(s_t)$。\n\n**DQN**：用神经网络近似 $Q_\\theta$，**经验回放**打散相关性，目标值 $y=r+\\gamma\\max_{a'}Q_\\theta(s',a')$：\n$$L(\\theta) = \\mathbb{E}_{(s,a,r,s')\\sim D}\\big[\\|(r+\\gamma\\max_{a'}Q_\\theta(s',a')) - Q_\\theta(s,a)\\|^2\\big]$$\n\n> 易混：$Q$ 评估「状态+动作」，$V$ 只评估「状态」；DQN 用 $\\max$ 取目标动作，属离策略（off-policy）。",
+      "tags": ["强化学习", "Q函数", "DQN"]
+    },
+    {
+      "title": "策略梯度家族：PG → Actor-Critic → PPO → GRPO",
+      "content": "**策略梯度 (REINFORCE)**：直接优化策略 $\\pi_\\theta$，\n$$\\nabla_\\theta R_\\theta = \\mathbb{E}_{\\tau\\sim p(\\tau)}[R(\\tau)\\nabla_\\theta\\log p_\\theta(\\tau)] \\approx \\frac1N\\sum\\sum R^{(l)}\\nabla_\\theta\\log\\pi_\\theta(a_t|s_t)$$\n用整条轨迹回报 $R(\\tau)$ 加权，方差大。\n\n**Actor-Critic**：Actor 出动作（policy-based），Critic 估值（value-based）。用 **优势函数** $A(s,a)=Q(s,a)-V(s)$ 替代 $R$ 降方差；**TD 误差 $\\delta=r+\\gamma V(s')-V(s)$ 是优势的无偏估计**：\n$$\\nabla J(\\theta) = \\sum_t \\delta_t \\nabla\\log\\pi_\\theta(a_t|s_t)$$\nCritic 做值回归最小化 $\\delta^2$。\n\n**PPO**（OpenAI 2017）：离线学习，用旧策略采样，引入策略比率 $r_t(\\theta)=\\frac{\\pi_\\theta(a_t|s_t)}{\\pi_{\\theta_{old}}(a_t|s_t)}$，**截断**目标防止策略跑偏：\n$$L^{CLIP}(\\theta) = \\mathbb{E}_t\\big[\\min(r_t A_t,\\ \\mathrm{clip}(r_t,1-\\epsilon,1+\\epsilon)A_t)\\big]$$\n\n**GRPO**（群组相对策略优化）：**砍掉 Critic 价值网络**，用同一输入生成一组候选 $\\{o_1,\\dots,o_G\\}$，以**组内相对**计算优势：\n$$A_i = \\frac{r_i - \\mathrm{mean}(r_{1:G})}{\\mathrm{std}(r_{1:G})}$$\n\n> 演进主线：降方差（引入 Critic/优势）→ 稳定（PPO 截断）→ 省算力（GRPO 去 Critic）。",
+      "tags": ["策略梯度", "Actor-Critic", "PPO", "GRPO"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "下列哪一项**不属于**机器学习的四要素 (Key Elements)？",
+      "options": ["数据 (Data)", "模型 (Model)", "损失函数 (Loss Function)", "图形界面 (GUI)"],
+      "answer": "D",
+      "explanation": "四要素为数据(经验)、模型(假设)、损失函数(目标)、优化(改进)。GUI 与机器学习的核心要素无关。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "当模型「太复杂、把训练数据中的随机噪声也学进去」时，会出现什么现象？",
+      "options": ["欠拟合", "过拟合", "梯度消失", "维度灾难"],
+      "answer": "B",
+      "explanation": "过拟合(Overfitting)指模型过于复杂，描述了数据细节(如随机噪声)而非底层规律，表现为训练误差低但测试误差高。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "medium",
+      "stem": "以下哪些是 PPT 中列出的、用于缓解过拟合的常用方法？（多选）",
+      "options": ["增加训练数据", "正则化(惩罚模型复杂度)", "交叉验证 / 留出法", "早停 (Early Stopping)"],
+      "answer": ["A", "B", "C", "D"],
+      "explanation": "四项均为 PPT 明确列出的防过拟合手段，此外还包括引入先验知识(如贝叶斯先验)。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "某数据集根节点熵 $H(D)\\approx 0.91$，按属性 $A$ 划分后两个叶子的条件熵分别为 $H(D|A=1)=0$、$H(D|A=2)\\approx 1$，加权条件熵 $H(D|A)\\approx 0.67$。该划分的信息增益约为多少？",
+      "options": ["约 0.24", "约 0.91", "约 1.67", "约 0.67"],
+      "answer": "A",
+      "explanation": "信息增益 $\\mathrm{Gain}(D,A)=H(D)-H(D|A)\\approx 0.91-0.67=0.24$。ID3 选信息增益最大的属性进行划分。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "朴素贝叶斯 (Naïve Bayes) 的核心假设是：给定类别 $c$ 时，各输入特征 $x_j$ 相互条件独立。",
+      "answer": true,
+      "explanation": "正是条件独立假设把 $P(x_1,\\dots,x_d|c)$ 近似为 $\\prod_j P(x_j|c)$，从而将指数级参数降为线性级。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "关于 K-NN 中 K 的作用，下列说法**正确**的是：",
+      "options": ["K 越大决策边界越破碎", "K=1 时永远预测多数类", "K=N 时永远预测多数类", "K 不影响决策边界"],
+      "answer": "C",
+      "explanation": "K 越大边界越平滑；当 K=N 时所有样本都成为邻居，模型永远预测多数类。K=1 的边界由 Voronoi 分割给出，最易受噪声影响。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "逻辑回归 (Logistic Regression) 中，log-odds 与输入的关系 $\\log\\frac{y}{1-y}=w^Tx+w_0$ 反解出 $y$ 的表达式是：",
+      "options": ["$y=w^Tx+w_0$", "$y=\\frac{1}{1+\\exp[-(w^Tx+w_0)]}$", "$y=\\exp(w^Tx+w_0)$", "$y=\\max(0,w^Tx+w_0)$"],
+      "answer": "B",
+      "explanation": "logit 的反函数即 Sigmoid(逻辑)函数，直接给出后验概率 $P(C_1|x)$，且平滑便于优化。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "二分类交叉熵损失 $\\ell = -r\\log y -(1-r)\\log(1-y)$ 中，当真实标签 $r=0$ 时，损失退化为：",
+      "options": ["$-\\log y$", "$-\\log(1-y)$", "$0$", "$-\\log y-\\log(1-y)$"],
+      "answer": "B",
+      "explanation": "$r=0$ 时第一项 $-r\\log y=0$，只剩 $-(1-r)\\log(1-y)=-\\log(1-y)$，即希望最大化 $\\log P(C_2|x)$。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "SVM 中，最大化间隔 (margin = $2/\\|w\\|$) 等价于：",
+      "options": ["最大化 $\\|w\\|$", "最小化 $\\frac{1}{2}\\|w\\|^2$", "最大化 $\\frac{1}{2}\\|w\\|^2$", "最小化 $w_0$"],
+      "answer": "B",
+      "explanation": "间隔 $=2/\\|w\\|$，最大化它等价于最小化 $\\|w\\|$，即最小化 $\\frac12\\|w\\|^2$，这是一个二次规划(凸优化)问题。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "easy",
+      "stem": "SVM 的约束 $y^{(\\ell)}(w^Tx^{(\\ell)}+w_0)\\ge 1$ 用一个不等式统一表达了两类($y=\\pm1$)样本应满足的边界条件。",
+      "answer": true,
+      "explanation": "对 $y=+1$ 要求 $w^Tx+w_0\\ge+1$，对 $y=-1$ 要求 $\\le-1$，两者乘上 $y$ 后统一为 $y(w^Tx+w_0)\\ge1$。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "反向传播中，某权重 $w$ 的梯度 $\\partial l/\\partial w$ 可写为：",
+      "options": ["前向缓存的输入 $z$ 乘以反向传来的误差 $\\partial l/\\partial a$", "激活值 $y$ 乘以学习率", "仅等于 $\\partial l/\\partial a$", "仅等于输入 $z$"],
+      "answer": "A",
+      "explanation": "由链式法则 $\\frac{\\partial l}{\\partial w}=\\frac{\\partial a}{\\partial w}\\cdot\\frac{\\partial l}{\\partial a}=z\\cdot\\frac{\\partial l}{\\partial a}$，前向算出 $\\partial a/\\partial w=z$，反向算出 $\\partial l/\\partial a$。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "自注意力 (Self-Attention) 的输出可写为 $H'=\\mathrm{softmax}(QK^T/\\sqrt{d})V$，其中 $Q,K,V$ 分别由什么得到？",
+      "options": ["三个不同的权重矩阵对同一输入 $H$ 线性变换得到", "都等于输入 $H$ 本身", "由 RNN 的隐藏状态拼接得到", "由位置编码直接给出"],
+      "answer": "A",
+      "explanation": "$Q=W_qH,\\,K=W_kH,\\,V=W_vH$，是用三组不同权重对同一输入投影得到查询、键、值。除以 $\\sqrt{d}$ 起缩放作用。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "输入特征图尺寸 $N=7$，卷积核 $F=3$，填充 $P=1$，步长 stride=2，输出尺寸为多少？（公式 $(N+2P-F)/\\text{stride}+1$）",
+      "options": ["7", "4", "3", "5"],
+      "answer": "B",
+      "explanation": "代入公式：$(N+2P-F)/\\text{stride}+1 = (7+2\\times1-3)/2+1 = 6/2+1 = 3+1 = 4$。这正是 PPT 中 stride=2 的样例结果。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "PCA 的优化问题 $\\max_u u^TSu$ s.t. $u^Tu=1$ 通过拉格朗日法求解后，归结为求解什么？",
+      "options": ["梯度下降迭代", "协方差矩阵 $S$ 的特征分解 $Su=\\lambda u$", "矩阵求逆", "Softmax 归一化"],
+      "answer": "B",
+      "explanation": "令 $\\nabla_u L=0$ 得 $Su=\\lambda u$，即 $u$ 为特征向量、$\\lambda$ 为特征值。取最大 $k$ 个特征值对应的特征向量为主成分，特征值即投影方差。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "在扩散模型 (Diffusion Model) 中，前向加噪过程是可训练的，而反向去噪过程是固定的。",
+      "answer": false,
+      "explanation": "恰好相反：前向加噪过程是**固定**的(逐步加高斯噪声)，反向去噪过程才是**可训练**的(用 U-Net 等网络预测每步分布的 $\\mu,\\sigma^2$)。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "GAN 的目标 $\\min_G\\max_D V(G,D)=\\mathbb{E}_{x\\sim P_{data}}[\\log D(x)]+\\mathbb{E}_{z}[\\log(1-D(G(z)))]$ 中，判别器 $D$ 与生成器 $G$ 的目标分别是：",
+      "options": ["D 最小化、G 最大化", "D 最大化(分辨真假)、G 最小化(骗过 D)", "两者都最大化", "两者都最小化"],
+      "answer": "B",
+      "explanation": "$D$ 通过最大化 $V$ 来区分真假样本，$G$ 通过最小化 $V$ 来生成骗过 $D$ 的假样本，二者对抗。全局最优时 $G$ 重现真实数据分布。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "强化学习中，Q 函数的贝尔曼递归形式 $Q(s_t,a_t)=r_t+\\gamma Q(s_{t+1},a_{t+1})$ 来源于：",
+      "options": ["对折扣回报 $R_t=\\sum_i\\gamma^{i-t}r_i$ 提取首项 $r_t$ 并把余项写成 $\\gamma$ 倍的下一步期望", "对损失函数求二阶导", "Softmax 归一化", "拉普拉斯平滑"],
+      "answer": "A",
+      "explanation": "把折扣回报 $R_t=r_t+\\gamma r_{t+1}+\\dots$ 中除首项外提出公因子 $\\gamma$，余项恰为 $\\gamma R_{t+1}$ 的期望，得到递归式，这是 DQN 目标值的依据。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "DQN 使用「经验回放 (Experience Replay)」的主要作用是：",
+      "options": ["增加模型参数", "把智能体自己的历史经验存入数据集并采样，打散样本相关性以稳定训练", "替代奖励函数", "加快推理速度"],
+      "answer": "B",
+      "explanation": "经验回放将 $(s,a,r,s')$ 存入回放记忆并随机采样小批量，打破时序相关性、提高样本利用率，使 Q 网络训练更稳定。"
+    },
+    {
+      "type": "single",
+      "difficulty": "hard",
+      "stem": "Actor-Critic 中，TD 误差 $\\delta=r+\\gamma V(s')-V(s)$ 之所以能替代优势函数 $A(s,a)=Q(s,a)-V(s)$，是因为：",
+      "options": ["TD 误差恒等于 0", "TD 误差是优势函数的一个无偏估计", "TD 误差总是大于优势函数", "二者没有关系"],
+      "answer": "B",
+      "explanation": "由于 $\\mathbb{E}[r+\\gamma V(s')]=Q(s,a)$，所以 $\\delta=r+\\gamma V(s')-V(s)$ 是 $A(s,a)=Q-V$ 的无偏估计，可用于降低策略梯度的方差。"
+    },
+    {
+      "type": "multiple",
+      "difficulty": "hard",
+      "stem": "关于 PPO 与 GRPO 的对比，下列说法正确的有：（多选）",
+      "options": ["PPO 用截断(clip)机制控制新旧策略比率 $r_t(\\theta)$，防止策略跑偏", "PPO 需要训练一个 Critic 价值网络来估计状态值", "GRPO 砍掉了 Critic，用群组内部的相对比较计算优势", "GRPO 的优势 $A_i=(r_i-\\mathrm{mean}(r))/\\mathrm{std}(r)$"],
+      "answer": ["A", "B", "C", "D"],
+      "explanation": "四项均正确。PPO 用比率截断稳定训练且依赖 Critic；GRPO 去掉 Critic，用同组多个候选输出的奖励标准化得到相对优势，节省算力。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "下列哪组方法都属于**无监督学习**？",
+      "options": ["逻辑回归、SVM、决策树", "K-means、PCA、自编码器", "DQN、PPO、A2C", "Softmax 回归、KNN、朴素贝叶斯"],
+      "answer": "B",
+      "explanation": "K-means(聚类)、PCA 与自编码器(降维)均无需标签，属无监督。A 与 D 是监督学习，C 是强化学习。"
+    },
+    {
+      "type": "short",
+      "difficulty": "medium",
+      "stem": "简述深度学习相比传统机器学习在「特征」上的根本区别，并说明「层次表示」的含义。",
+      "answer": "**根本区别**：传统机器学习用人工设计/固定的特征 + 可训练的分类器；深度学习是**可训练的特征提取器 + 可训练的分类器**，端到端联合学习，特征不再依赖人工设计。\n\n**层次表示 (Hierarchical Representations)**：深网络逐层抽象，低层学到边缘/纹理等基础特征，中层组合成部件，高层形成语义概念；这种模块化是**自动从数据中学到**的。因此在相同参数量下，深网络往往比浅网络表达能力更强、所需数据更少。"
+    },
+    {
+      "type": "short",
+      "difficulty": "hard",
+      "stem": "请按「假设/模型 → 损失函数 → 优化」三段式，对比逻辑回归与 SVM 两个线性分类器。",
+      "answer": "**逻辑回归 (Logistic Regression)**\n- 模型：$y=\\mathrm{sigmoid}(w^Tx+w_0)$，输出后验概率 $P(C_1|x)$。\n- 损失：交叉熵 $\\ell=-r\\log y-(1-r)\\log(1-y)$（等价于最大似然）。\n- 优化：梯度下降。\n\n**SVM**\n- 模型：线性判别 $w^Tx+w_0$，关注**最大间隔**超平面。\n- 损失/目标：$\\min\\frac12\\|w\\|^2$ s.t. $y^{(\\ell)}(w^Tx^{(\\ell)}+w_0)\\ge1$。\n- 优化：二次规划(QP)，凸优化。\n\n**关键区别**：逻辑回归给出概率、对所有点都计损失；SVM 只关心边界附近的支持向量、追求最大间隔，泛化性好但不直接输出概率。两者都是线性模型，复杂度均约 $O(d)$。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "Transformer 解码器中的 Masked Multi-Head Attention 的作用是：在生成第 $i$ 个词时，只允许关注已经生成的词，而不能看到未来的词。",
+      "answer": true,
+      "explanation": "Masked 自注意力屏蔽未来位置，保证自回归生成时第 $i$ 步只依赖 $1\\dots i$ 的输出(shifted right)，避免信息泄露。编码器侧的注意力则可双向关注整个输入序列。"
+    }
+  ]
+}
