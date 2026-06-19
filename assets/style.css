@@ -165,6 +165,12 @@ html[data-theme="dark"] .opt.wrong { background: #3a1414; }
 .quiz-summary b { color: var(--primary); font-size: 20px; }
 
 .empty { text-align: center; color: var(--text-soft); padding: 60px; }
+
+/* KaTeX: let long display formulas scroll horizontally instead of overflowing the card */
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0 8px; }
+.katex-display > .katex { white-space: nowrap; }
+.katex { font-size: 1.05em; }
+.kp-body .katex-display, .q-stem .katex-display, .explain .katex-display { margin: 10px 0; }
 .pill-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .pill { font-size: 13px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); cursor: pointer; color: var(--text-soft); }
 .pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
