@@ -7,67 +7,151 @@
     {
       "title": "PyTorch概述与核心特性",
       "content": "PyTorch是一个Python深度学习框架，提供两大高级特性：\n\n1. **Tensor计算**：类似NumPy的多维数组运算，但支持强大的**GPU加速**。\n2. **神经网络**：构建在**tape-based autograd（基于磁带的自动求导）**系统之上。\n\nPyTorch相比早期TensorFlow的优势：\n- **More Pythonic（命令式/imperative）**：代码即时执行（eager），灵活可控。\n- **类NumPy语法、面向对象设计**：代码直观干净。\n- **易于调试**：即时错误反馈，可直接用Python调试工具（如`pdb`）。\n- **网络搭建直观**：write code as the network works，按forward/backward组织，便于组装CNN、MLP等经典结构。\n\n> 一句话：PyTorch = NumPy + GPU + 自动求导 + 神经网络模块。",
-      "tags": ["PyTorch", "概述", "特性"]
+      "tags": [
+        "PyTorch",
+        "概述",
+        "特性"
+      ]
     },
     {
       "title": "PyTorch vs TensorFlow",
       "content": "两大框架在多个维度上的对比：\n\n| 维度 | PyTorch | TensorFlow |\n|---|---|---|\n| 计算图 | **动态计算图**（运行时构建，灵活修改） | 默认静态图（预编译优化），2.x也支持Eager |\n| API设计 | Pythonic、与NumPy兼容、直观易调试 | 早期API复杂，2.x用Keras简化 |\n| 性能 | 单GPU高效，分布式持续改进（`torch.distributed`） | 大规模分布式强，支持TPU/XLA |\n| 社区 | 学术研究主导（约70%顶会论文），NLP活跃（Hugging Face） | 工业部署生态完善（Serving/Lite/JS、TFX） |\n| 部署 | TorchServe/JIT/ONNX | 原生端到端部署，生产成熟度高 |\n| 硬件 | CUDA/ROCm，TPU需额外配置 | 深度集成Google TPU、TensorRT |\n\n核心区别：PyTorch采用**动态图（define-by-run）**，TensorFlow早期采用**静态图（define-and-run）**。",
-      "tags": ["对比", "TensorFlow", "动态图"]
+      "tags": [
+        "对比",
+        "TensorFlow",
+        "动态图"
+      ]
     },
     {
       "title": "Tensor张量：基本数据结构",
       "content": "**Tensor**是PyTorch中最基本的数据结构（类似NumPy的`ndarray`，但能在GPU上运算并参与自动求导）。\n\n创建张量：\n```python\nimport torch\n\n# 从Python列表创建，可指定dtype\nx = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float)\nW = torch.tensor([[0.1, 0.2, 0.3],\n                  [0.4, 0.1, 0.7],\n                  [0.8, 0.1, 0.2]])\n\n# 创建全0张量（指定形状与dtype）\nr = torch.zeros([1, 3], dtype=torch.long)\nones = torch.ones(2, 3)\nrnd = torch.rand(2, 3)   # [0,1)均匀分布\n```\n\nTensor与NumPy互转（共享内存，零拷贝）：\n```python\nimport numpy as np\n\nx_np = np.array([0.1, 0.2, 0.3])\nx_torch = torch.from_numpy(x_np)   # numpy -> tensor\nback = x_torch.numpy()             # tensor -> numpy\n```\n\n> 常用属性：`x.shape`/`x.size()`查看形状，`x.dtype`查看类型，`x.view(-1, d)`改变形状。",
-      "tags": ["Tensor", "张量", "NumPy"]
+      "tags": [
+        "Tensor",
+        "张量",
+        "NumPy"
+      ]
     },
     {
       "title": "计算图与requires_grad",
       "content": "PyTorch的Tensor在后台会**隐式构建计算图（computation graph）**，记录张量之间的运算关系，为反向传播做准备。\n\n要让某个张量参与梯度计算，需设置`requires_grad=True`，PyTorch才会为它保留计算图：\n```python\na = torch.tensor(2.0, requires_grad=True)\nb = torch.tensor(1.0, requires_grad=True)\nc = a + b      # c = 3\nd = b + 1      # d = 2\ne = c * d      # e = 6\nprint(c)  # tensor(3., grad_fn=<AddBackward0>)\nprint(d)  # tensor(2., grad_fn=<AddBackward0>)\nprint(e)  # tensor(6., grad_fn=<MulBackward0>)\n```\n\n关键点：\n- 每个由运算得到的张量都带有`grad_fn`，它记录了产生该张量的运算（如`AddBackward0`、`MulBackward0`），这就是构成计算图的节点。\n- **叶子节点（leaf）**是用户直接创建、`requires_grad=True`的张量（如`a`、`b`），梯度最终会累积到它们的`.grad`中。\n- PyTorch是**动态图**：图在前向运算时即时构建，每次forward都会重新构建。",
-      "tags": ["计算图", "requires_grad", "grad_fn"]
+      "tags": [
+        "计算图",
+        "requires_grad",
+        "grad_fn"
+      ]
     },
     {
       "title": "autograd自动求导与backward()",
       "content": "PyTorch的**autograd**会自动沿计算图反向传播，一次性计算所有梯度。对标量输出的张量调用`.backward()`即可。\n\n标量函数求导，例如 $f(x)=(x-2)^2$，求 $f'(1)$：\n```python\ndef f(x):\n    return (x - 2) ** 2\n\nx = torch.tensor([1.0], requires_grad=True)\ny = f(x)\ny.backward()          # 对叶子变量反向传播\nprint(x.grad)         # tensor([-2.])，即 f'(1)=2*(1-2)=-2\n```\n\n向量函数同理，例如 $g(w)=2w_1 w_2 + w_2\\cos(w_1)$，求 $\\nabla_w g$：\n```python\ndef g(w):\n    return 2 * w[0] * w[1] + w[1] * torch.cos(w[0])\n\nw = torch.tensor([np.pi, 1.0], requires_grad=True)\nz = g(w)\nz.backward()\nprint(w.grad)   # tensor([2.0000, 5.2832])，与解析解一致\n```\n\n要点：\n- 只能对**标量**直接`backward()`；若输出是向量，需传入与之同形的`gradient`参数。\n- 反向传播后梯度存于叶子张量的`.grad`属性中。\n- 推理时可用`with torch.no_grad():`关闭图构建以节省显存。",
-      "tags": ["autograd", "backward", "自动求导"]
+      "tags": [
+        "autograd",
+        "backward",
+        "自动求导"
+      ]
     },
     {
       "title": "用nn.Module定义模型",
       "content": "在PyTorch中，机器学习模型通过**继承`torch.nn.Module`**来定义。你需要：\n1. 在`__init__`中定义所用的子模块（层）。\n2. **自定义`forward()`函数**，描述模型的前向计算图。\n\n```python\nimport torch.nn as nn\n\nclass MyModel(nn.Module):\n    def __init__(self, d_in, d_hidden, d_out):\n        super().__init__()\n        self.fc1 = nn.Linear(d_in, d_hidden)\n        self.act = nn.Tanh()\n        self.fc2 = nn.Linear(d_hidden, d_out)\n\n    def forward(self, x):\n        x = self.act(self.fc1(x))\n        return self.fc2(x)\n\nmodel = MyModel(1, 32, 1)\ny_hat = model(x)   # 等价于 model.forward(x)\n```\n\n搭建模型常用的PyTorch子模块：\n- **Basic Modules**：如`nn.Linear`（全连接层）。\n- **Functions**：如各种激活函数`nn.Tanh`、`nn.ReLU`。\n- **Containers**：如`nn.Sequential`（顺序容器）、concat等。\n- **其他现成模型**。\n\n> 注意：调用模型用`model(x)`而非`model.forward(x)`，前者会触发hook等机制。",
-      "tags": ["nn.Module", "forward", "模型定义"]
+      "tags": [
+        "nn.Module",
+        "forward",
+        "模型定义"
+      ]
     },
     {
       "title": "nn.Sequential顺序容器",
       "content": "`nn.Sequential`是一个**顺序容器**，按顺序把各层串起来，无需手写`forward`，适合简单的前馈结构。\n\n用`nn.Sequential`定义一个两隐层的MLP：\n```python\nn_hidden_1 = 32\nn_hidden_2 = 32\nd = 1\nd_out = 1\n\nneural_network = nn.Sequential(\n    nn.Linear(d, n_hidden_1),\n    nn.Tanh(),\n    nn.Linear(n_hidden_1, n_hidden_2),\n    nn.Tanh(),\n    nn.Linear(n_hidden_2, d_out)\n)\n\ny_hat = neural_network(X)   # 数据依次流经每一层\n```\n\n- `nn.Linear(in_features, out_features)`实现 $y = xW^T + b$。\n- 容器会自动注册其中各层的参数，可用`neural_network.parameters()`取得，交给优化器。",
-      "tags": ["nn.Sequential", "MLP", "Linear"]
+      "tags": [
+        "nn.Sequential",
+        "MLP",
+        "Linear"
+      ]
     },
     {
       "title": "损失函数Loss",
       "content": "PyTorch在`torch.nn`中内置了许多常见损失函数，例如**`MSELoss`（均方误差，用于回归）**和**`CrossEntropyLoss`（交叉熵，用于分类）**。\n\n```python\nimport torch.nn as nn\n\nmse_loss_fn = nn.MSELoss()\ninput  = torch.tensor([[0., 0, 0]])\ntarget = torch.tensor([[1., 0, -1]])\nloss = mse_loss_fn(input, target)\nprint(loss)   # tensor(0.6667)\n```\n\n计算说明：MSE对各元素差的平方取均值，$\\frac{(0-1)^2+(0-0)^2+(0-(-1))^2}{3}=\\frac{1+0+1}{3}=0.6667$。\n\n要点：\n- 损失函数是一个可调用对象：`loss = loss_fn(prediction, target)`。\n- `loss`是一个标量张量，对它调用`loss.backward()`即可启动反向传播。\n- 分类任务常用`nn.CrossEntropyLoss`（内部含softmax，输入应为logits，target为类别索引）。",
-      "tags": ["损失函数", "MSELoss", "CrossEntropyLoss"]
+      "tags": [
+        "损失函数",
+        "MSELoss",
+        "CrossEntropyLoss"
+      ]
     },
     {
       "title": "优化器Optimizer与zero_grad",
       "content": "`torch.optim`提供多种基于梯度的优化方法，如**SGD（梯度下降）**、Adam等。优化器至少需要传入**模型参数**和**学习率**。\n\n```python\nmodel = nn.Linear(1, 1)\noptim = torch.optim.SGD(model.parameters(), lr=1e-2)\n```\n\n三条关键规则：\n1. **优化器不会替你算梯度**，必须自己调用`loss.backward()`。\n2. **必须在backward()之前调用`optim.zero_grad()`清零梯度**——因为PyTorch默认是把新梯度**累加（inplace add）**到`.grad`上，而不是覆盖；不清零会导致梯度不断累积。\n3. 算完梯度后调用`optim.step()`，按梯度更新参数。\n\n一次完整的参数更新：\n```python\nX_simple = torch.tensor([[1.]])\ny_label  = torch.tensor([[2.]])\nloss_fn  = nn.MSELoss()\n\ny_hat = model(X_simple)\nloss = loss_fn(y_hat, y_label)\noptim.zero_grad()   # 1) 清零梯度\nloss.backward()     # 2) 反向传播算梯度\noptim.step()        # 3) 更新参数\n```",
-      "tags": ["优化器", "SGD", "zero_grad", "step"]
+      "tags": [
+        "优化器",
+        "SGD",
+        "zero_grad",
+        "step"
+      ]
     },
     {
       "title": "训练循环：forward, loss, backward, step",
       "content": "PyTorch训练的标准节奏（Rhythm）：\n1. 用内置类**设计模型（Model）**；\n2. 选定**损失函数与优化器**；\n3. 进入**训练循环（forward → backward → update）**。\n\n标准训练循环模板：\n```python\nfor epoch in range(n_epochs):\n    y_hat = model(X)            # 1) forward 前向\n    loss = loss_func(y_hat, y)  # 2) 计算损失\n    optim.zero_grad()           # 3) 梯度清零\n    loss.backward()             # 4) backward 反向传播\n    optim.step()                # 5) step 更新参数\n```\n\n若不用优化器，手动更新参数也能说明本质：\n```python\nw = torch.tensor([1.0], requires_grad=True)\n\ndef forward(x):\n    return x * w\n\nfor epoch in range(10):\n    for x_val, y_val in zip(x_data, y_data):\n        y_pred = forward(x_val)\n        l = (y_pred - y_val) ** 2\n        l.backward()\n        # 在 no_grad 下手动更新权重\n        with torch.no_grad():\n            w -= 0.01 * w.grad\n        w.grad.zero_()   # 手动清零，否则梯度会累加\n```\n\n> 记忆口诀：**zero_grad → forward/loss → backward → step**，四步缺一不可。",
-      "tags": ["训练循环", "forward", "backward", "step"]
+      "tags": [
+        "训练循环",
+        "forward",
+        "backward",
+        "step"
+      ]
     },
     {
       "title": "Dataset与DataLoader",
       "content": "**`torch.utils.data.Dataset`**是表示数据集的抽象类。自定义数据集需继承它并实现两个方法：\n- `__len__`：使`len(dataset)`返回样本数量；\n- `__getitem__`：使`dataset[i]`返回第 $i$ 个样本。\n\n```python\nfrom torch.utils.data import Dataset\nimport pandas as pd\n\nclass MyDataset(Dataset):\n    def __init__(self, csv_file):\n        self.sentences = pd.read_csv(csv_file)\n    def __len__(self):\n        return len(self.sentences)\n    def __getitem__(self, idx):\n        sample = self.sentences[idx]\n        return sample.lower()\n```\n\n**`torch.utils.data.DataLoader`**把Dataset包装成可迭代对象，高效地：\n- **batching**：按`batch_size`分批；\n- **shuffling**：打乱数据；\n- **并行加载**：用`num_workers`个子进程多进程读取。\n\n```python\nfrom torch.utils.data import DataLoader\n\ndataloader = DataLoader(my_dataset, batch_size=4,\n                        shuffle=True, num_workers=4)\nfor i_batch, sample_batched in enumerate(dataloader):\n    print(i_batch, sample_batched.size())\n```\n\n> 用DataLoader迭代取batch，比手写for循环更高效、更易并行。",
-      "tags": ["Dataset", "DataLoader", "数据加载"]
+      "tags": [
+        "Dataset",
+        "DataLoader",
+        "数据加载"
+      ]
     },
     {
       "title": "GPU加速与detach",
       "content": "PyTorch通过CUDA支持GPU加速，把张量和模型搬到GPU上即可：\n```python\ndevice = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\nmodel = model.to(device)\nX = X.to(device)            # 张量也要搬到同一设备\ny_hat = model(X)\nresult = y_hat.cpu()        # 取回CPU（如要转numpy）\n```\n\n> 注意：参与同一运算的张量必须在**同一设备**上，否则报错。\n\n**`detach()`**：从计算图中分离张量，得到一个`requires_grad=False`的副本，常用于可视化或仅取数值、不再求导的场景：\n```python\n# 预测与可视化时切断梯度，再转 numpy\ny_pred = neural_network(X_grid)\nplt.plot(X_grid.detach().numpy(), y_pred.detach().numpy(), 'r')\n```\n\n要点：\n- 带`requires_grad=True`的张量不能直接`.numpy()`，需先`.detach()`。\n- 推理时整体可用`with torch.no_grad():`，效果是不构建计算图、更省显存。",
-      "tags": ["GPU", "CUDA", "detach", "to"]
+      "tags": [
+        "GPU",
+        "CUDA",
+        "detach",
+        "to"
+      ]
     },
     {
       "title": "完整实例：用PyTorch实现MLP回归",
       "content": "把前面的概念串成一个完整流程：拟合 $y = 4\\sin(\\pi x)\\cos(6\\pi x^2)$。\n\n**1) 构造数据**\n```python\nd, n = 1, 200\nX = torch.rand(n, d)\ny = 4 * torch.sin(np.pi * X) * torch.cos(6 * np.pi * X ** 2)\n```\n\n**2) 定义模型（两隐层MLP）**\n```python\nneural_network = nn.Sequential(\n    nn.Linear(d, 32), nn.Tanh(),\n    nn.Linear(32, 32), nn.Tanh(),\n    nn.Linear(32, 1)\n)\n```\n\n**3) 训练**\n```python\nstep_size, n_epochs = 0.05, 6000\nloss_func = nn.MSELoss()\noptim = torch.optim.SGD(neural_network.parameters(), lr=step_size)\n\nfor i in range(n_epochs):\n    y_hat = neural_network(X)\n    loss = loss_func(y_hat, y)\n    optim.zero_grad()\n    loss.backward()\n    optim.step()\n    if i % (n_epochs // 10) == 0:\n        print(f'{i}, {loss.item()}')   # loss 随训练下降\n```\n\n**4) 预测与可视化**\n```python\nX_grid = torch.from_numpy(np.linspace(0, 1, 50)).float().view(-1, d)\ny_hat = neural_network(X_grid)\nplt.scatter(X.numpy(), y.numpy())\nplt.plot(X_grid.detach().numpy(), y_hat.detach().numpy(), 'r')\nplt.show()\n```\n\n> 相比纯NumPy手写反向传播，PyTorch代码更少、更快——自动求导承担了梯度计算。",
-      "tags": ["MLP", "实例", "回归", "训练流程"]
+      "tags": [
+        "MLP",
+        "实例",
+        "回归",
+        "训练流程"
+      ]
+    },
+    {
+      "title": "📝 例子1：创建张量并做加减、广播、reshape",
+      "content": "我们从最基础的张量操作练起，把张量当成一个会算数的多维数组。\n\n```python\nimport torch\n\n# 1) 创建两个张量（一维向量）\na = torch.tensor([1.0, 2.0, 3.0])\nb = torch.tensor([10.0, 20.0, 30.0])\n\n# 2) 逐元素加减（形状相同，对应位置相加）\nprint(a + b)   # tensor([11., 22., 33.])\nprint(b - a)   # tensor([ 9., 18., 27.])\n\n# 3) 广播(broadcasting)：形状不同也能算\n#    标量会自动“扩展”到每个元素\nprint(a + 100) # tensor([101., 102., 103.])\n\n# 4) 行向量 + 列向量 的广播\nrow = torch.tensor([1.0, 2.0, 3.0])      # 形状 (3,)\ncol = torch.tensor([[10.0], [20.0]])     # 形状 (2,1)\nprint(row + col)\n# tensor([[11., 12., 13.],\n#         [21., 22., 23.]])  ->  形状 (2,3)\n\n# 5) reshape：改变形状但不改变元素\nx = torch.arange(6)        # tensor([0,1,2,3,4,5])，形状 (6,)\nprint(x.reshape(2, 3))     # 变成 2 行 3 列\nprint(x.view(3, 2))        # view 也能改形状（要求内存连续）\nprint(x.reshape(-1, 2))    # -1 表示“自动算这一维” -> (3,2)\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **创建张量**：`torch.tensor([...])` 把 Python 列表变成张量。加 `.0` 让元素是浮点数（`float`），因为后面做梯度/训练时几乎都用浮点。\n2. **逐元素加减**：当两个张量**形状完全相同**时，`+`、`-` 就是把对应位置的数分别运算，结果形状不变。这和 NumPy 完全一致。\n3. **广播（broadcasting）**：`a + 100` 中 100 是标量，PyTorch 会把它**自动扩展**成 `[100,100,100]` 再相加。这样我们不用手动复制，既省代码又省内存。\n4. **行列广播**：形状 `(3,)` 和 `(2,1)` 相加，PyTorch 按规则把两边都“撑”成 `(2,3)`：行向量沿行复制、列向量沿列复制。**记规则**：从最后一维往前比，维度相等或其中一个为 1 才能广播。\n5. **reshape / view**：`reshape(2,3)` 把 6 个元素重新排成 2×3，**元素顺序不变、个数不变**。`-1` 是占位符，表示“这一维你帮我算”，因为 6÷2=3 所以 `(-1,2)` 得到 `(3,2)`。\n\n> 小贴士：`view` 要求张量在内存里是连续的，遇到报错可改用 `reshape`，它更稳妥。形状不匹配且不满足广播规则时会直接报错，这也是初学最常见的 bug。",
+      "tags": [
+        "例子"
+      ]
+    },
+    {
+      "title": "📝 例子2：用 requires_grad + backward() 演示自动求导并手动核对",
+      "content": "自动求导是 PyTorch 的灵魂。我们先用一个**手算也能验证**的简单函数，确认 PyTorch 算的梯度和数学公式一致。\n\n```python\nimport torch\n\n# 目标函数： y = x^2 + 3x\n# 数学求导： dy/dx = 2x + 3\n\n# 1) 创建需要求导的张量，requires_grad=True 让它被 autograd 追踪\nx = torch.tensor(4.0, requires_grad=True)\n\n# 2) 前向计算（PyTorch 在后台悄悄记录计算图）\ny = x ** 2 + 3 * x\nprint(y)          # tensor(28., grad_fn=<AddBackward0>)\n\n# 3) 反向传播：对标量 y 调用 backward()，自动算出所有梯度\ny.backward()\n\n# 4) 梯度存放在叶子张量的 .grad 属性里\nprint(x.grad)     # tensor(11.)\n\n# 5) 手动核对： dy/dx = 2*x + 3 = 2*4 + 3 = 11  ✅\nprint(2 * 4 + 3)  # 11\n```\n\n再看一个**两个变量**的例子，核对偏导：\n\n```python\n# z = a*b + a^2，  dz/da = b + 2a,  dz/db = a\na = torch.tensor(2.0, requires_grad=True)\nb = torch.tensor(5.0, requires_grad=True)\n\nz = a * b + a ** 2\nz.backward()\n\nprint(a.grad)   # tensor(9.)   核对: b + 2a = 5 + 4 = 9 ✅\nprint(b.grad)   # tensor(2.)   核对: a       = 2     ✅\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **requires_grad=True**：只有打开这个开关，PyTorch 才会为这个张量**保留计算图**、记录它参与了哪些运算，将来才能求它的梯度。默认是 `False`（不追踪，省内存）。\n2. **前向计算**：写 `y = x**2 + 3*x` 时，PyTorch 一边算数值，一边在后台搭一张“计算图”。打印 `y` 会看到 `grad_fn=<AddBackward0>`，这就是图存在的证据。\n3. **backward()**：对**标量** `y` 调用一次，autograd 就沿计算图从后往前，用链式法则把每个变量的梯度都算出来。注意只能对标量直接 `backward()`。\n4. **.grad**：算完后梯度累积在**叶子张量**（我们亲手创建、`requires_grad=True` 的 `x`）的 `.grad` 属性里。\n5. **手动核对**：`dy/dx = 2x+3`，代入 `x=4` 得 11，和 `x.grad` 完全一致 —— 这说明 PyTorch 的自动求导是可信的，你不用再手推反向传播。\n\n> 易错点：如果连续 `backward()` 两次而没清零，`.grad` 会**累加**（不是覆盖）。所以训练循环里每轮都要 `zero_grad()`。",
+      "tags": [
+        "例子"
+      ]
+    },
+    {
+      "title": "📝 例子3：nn.Linear + nn.MSELoss + 优化器，最小训练循环",
+      "content": "现在把零件拼起来，写一个能**真正训练**的最小例子：让模型学会 `y = 2x + 1`。\n\n```python\nimport torch\nimport torch.nn as nn\n\n# 1) 造一点训练数据：真实规律 y = 2x + 1\nX = torch.tensor([[1.0], [2.0], [3.0], [4.0]])   # 形状 (4,1)\ny = torch.tensor([[3.0], [5.0], [7.0], [9.0]])   # 2x+1\n\n# 2) 定义模型：一个线性层  y = w*x + b（自动含权重 w 和偏置 b）\nmodel = nn.Linear(in_features=1, out_features=1)\n\n# 3) 损失函数 + 优化器\nloss_fn = nn.MSELoss()                                  # 均方误差（回归常用）\noptim = torch.optim.SGD(model.parameters(), lr=0.01)    # 随机梯度下降\n\n# 4) 训练循环（核心四步：forward -> loss -> backward -> step）\nfor epoch in range(1000):\n    y_hat = model(X)              # forward：前向算预测\n    loss = loss_fn(y_hat, y)      # 算损失（一个标量，衡量预测有多差）\n\n    optim.zero_grad()             # 清零上一轮的梯度（否则会累加）\n    loss.backward()               # backward：反向传播，算出每个参数的梯度\n    optim.step()                  # step：按梯度更新 w 和 b\n\n    if epoch % 200 == 0:\n        print(f'epoch {epoch}, loss {loss.item():.4f}')\n\n# 5) 看看学到的参数，应接近 w=2, b=1\nprint('weight =', model.weight.item())   # ≈ 2\nprint('bias   =', model.bias.item())     # ≈ 1\n```\n\n**逐行讲解（每行为什么这么写）：**\n\n1. **造数据**：`X`、`y` 都做成 `(4,1)` 的二维张量，因为 `nn.Linear` 期望输入形状是 `(样本数, 特征数)`。真实规律是 `y=2x+1`，我们希望模型自己把 `w≈2, b≈1` 学出来。\n2. **`nn.Linear(1, 1)`**：建一个全连接层，输入 1 维、输出 1 维，内部自动创建可训练参数 `weight` 和 `bias`，实现 `y = x·w + b`。\n3. **`nn.MSELoss()`**：均方误差，把预测和真值差的平方求平均，是回归任务的标准损失。**`SGD(model.parameters(), lr=0.01)`**：告诉优化器“要更新哪些参数”和“步子多大（学习率）”。\n4. **训练四步**（最重要，**顺序不能乱**）：\n   - `model(X)` 前向得到预测 `y_hat`；\n   - `loss_fn(y_hat, y)` 算出当前有多差；\n   - `optim.zero_grad()` 先把上一轮残留的梯度清零；\n   - `loss.backward()` 反向传播，把每个参数的梯度写进 `.grad`；\n   - `optim.step()` 按 `参数 = 参数 - 学习率 × 梯度` 更新一小步。\n   循环很多轮后，loss 会越来越小，参数越来越准。\n5. **查看结果**：训练完打印 `weight`、`bias`，应该非常接近 2 和 1，说明模型确实学到了规律。\n\n> 口诀：**zero_grad → forward/loss → backward → step**。其中 `zero_grad` 容易忘，忘了梯度就会跨轮累加，训练直接跑偏。",
+      "tags": [
+        "例子"
+      ]
+    },
+    {
+      "title": "📝 例子4：用 Dataset + DataLoader 取一个 batch",
+      "content": "数据多了就不能一次全塞进模型，要**分批（batch）**喂。`Dataset` 负责“按编号取一条样本”，`DataLoader` 负责“打包成一批、还能打乱”。\n\n```python\nimport torch\nfrom torch.utils.data import Dataset, DataLoader\n\n# 1) 自定义数据集：必须实现 __len__ 和 __getitem__\nclass MyDataset(Dataset):\n    def __init__(self):\n        # 10 个样本：特征 x 和标签 y\n        self.x = torch.arange(10).float().reshape(10, 1)  # 0~9\n        self.y = self.x * 2                               # y = 2x\n\n    def __len__(self):\n        return len(self.x)            # 让 len(dataset) 知道有多少样本\n\n    def __getitem__(self, idx):\n        return self.x[idx], self.y[idx]   # 按下标返回第 idx 条 (特征, 标签)\n\n# 2) 实例化数据集\ndataset = MyDataset()\nprint('样本总数:', len(dataset))     # 10\nprint('第0条样本:', dataset[0])      # (tensor([0.]), tensor([0.]))\n\n# 3) 用 DataLoader 打包：每批 4 条，并打乱顺序\nloader = DataLoader(dataset, batch_size=4, shuffle=True)\n\n# 4) 取出第一个 batch 看看\nfor xb, yb in loader:\n    print('一个 batch 的特征形状:', xb.shape)   # torch.Size([4, 1])\n    print('一个 batch 的标签形状:', yb.shape)   # torch.Size([4, 1])\n    print(xb)\n    break   # 只看第一批就退出\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **继承 `Dataset`**：自定义数据集只需实现两个方法。`__len__` 告诉框架“一共多少条”，`__getitem__(idx)` 告诉框架“第 idx 条长什么样”。有了这两个，`DataLoader` 才知道怎么取数。\n2. **`__getitem__` 返回一条样本**：这里返回 `(特征, 标签)` 元组。注意它每次只取**一条**，分批的活儿交给 DataLoader。\n3. **`DataLoader(dataset, batch_size=4, shuffle=True)`**：\n   - `batch_size=4`：每次自动把 4 条样本**堆叠**成一个批，单条 `(1,)` 堆成 `(4,1)`；\n   - `shuffle=True`：每个 epoch 打乱顺序，避免模型记住数据排列，提升泛化。\n4. **遍历取 batch**：`for xb, yb in loader` 每次拿到一批。`xb.shape` 是 `(4,1)`，正好可以直接喂给 `nn.Linear(1, ...)`。在真实训练里，就是把例子3的循环改成“外层 epoch、内层遍历 loader 取 batch”。\n\n> 为什么不用普通 for 循环手动切片？因为 DataLoader 还能用 `num_workers` 开多进程并行读数据、自动 shuffle 和堆叠，又快又省心。10 条样本、batch=4，会分成 4+4+2 三批。",
+      "tags": [
+        "例子"
+      ]
     }
   ],
   "questions": [
@@ -75,7 +159,12 @@
       "type": "single",
       "difficulty": "easy",
       "stem": "PyTorch中最基本的数据结构是什么？",
-      "options": ["DataFrame", "Tensor（张量）", "Array（数组）", "Graph（图）"],
+      "options": [
+        "DataFrame",
+        "Tensor（张量）",
+        "Array（数组）",
+        "Graph（图）"
+      ],
       "answer": "B",
       "explanation": "解析：Tensor是PyTorch的基本数据结构，类似NumPy的ndarray，但支持GPU加速和自动求导。DataFrame是pandas的结构，与PyTorch无关。"
     },
@@ -83,7 +172,12 @@
       "type": "single",
       "difficulty": "easy",
       "stem": "下列哪一项最准确地描述了PyTorch相对TensorFlow早期版本的核心特点？",
-      "options": ["默认使用静态计算图", "使用动态计算图（define-by-run），运行时即时构建", "只能在CPU上运行", "不支持自动求导"],
+      "options": [
+        "默认使用静态计算图",
+        "使用动态计算图（define-by-run），运行时即时构建",
+        "只能在CPU上运行",
+        "不支持自动求导"
+      ],
       "answer": "B",
       "explanation": "解析：PyTorch采用动态计算图，图在前向运算时即时构建，便于调试和灵活控制；TensorFlow早期默认静态图。PyTorch既支持GPU也内置autograd自动求导。"
     },
@@ -91,7 +185,12 @@
       "type": "single",
       "difficulty": "easy",
       "stem": "要让一个张量参与梯度计算（被autograd追踪），创建时应设置哪个参数？",
-      "options": ["grad=True", "requires_grad=True", "track_grad=True", "autograd=True"],
+      "options": [
+        "grad=True",
+        "requires_grad=True",
+        "track_grad=True",
+        "autograd=True"
+      ],
       "answer": "B",
       "explanation": "解析：设置`requires_grad=True`后，PyTorch才会为该张量保留计算图并在backward时计算其梯度。"
     },
@@ -99,7 +198,12 @@
       "type": "single",
       "difficulty": "medium",
       "stem": "以下代码运行后，`x.grad`的值是多少？\n```python\ndef f(x):\n    return (x - 2) ** 2\nx = torch.tensor([1.0], requires_grad=True)\ny = f(x)\ny.backward()\nprint(x.grad)\n```",
-      "options": ["tensor([1.])", "tensor([-2.])", "tensor([2.])", "tensor([0.])"],
+      "options": [
+        "tensor([1.])",
+        "tensor([-2.])",
+        "tensor([2.])",
+        "tensor([0.])"
+      ],
       "answer": "B",
       "explanation": "解析：$f(x)=(x-2)^2$，$f'(x)=2(x-2)$，在$x=1$处为$2\\times(1-2)=-2$，故`x.grad`为`tensor([-2.])`。"
     },
@@ -107,7 +211,12 @@
       "type": "single",
       "difficulty": "medium",
       "stem": "在使用优化器的标准训练循环中，下列哪个调用顺序是正确的？",
-      "options": ["loss.backward() → optim.step() → optim.zero_grad()", "optim.zero_grad() → loss.backward() → optim.step()", "optim.step() → loss.backward() → optim.zero_grad()", "loss.backward() → optim.zero_grad() → optim.step()"],
+      "options": [
+        "loss.backward() → optim.step() → optim.zero_grad()",
+        "optim.zero_grad() → loss.backward() → optim.step()",
+        "optim.step() → loss.backward() → optim.zero_grad()",
+        "loss.backward() → optim.zero_grad() → optim.step()"
+      ],
       "answer": "B",
       "explanation": "解析：正确顺序是先`optim.zero_grad()`清零旧梯度，再`loss.backward()`计算新梯度，最后`optim.step()`更新参数。若不先清零，PyTorch会把梯度累加导致错误。"
     },
@@ -115,7 +224,12 @@
       "type": "single",
       "difficulty": "medium",
       "stem": "为什么训练循环中每次迭代都要调用`optim.zero_grad()`（或`w.grad.zero_()`）？",
-      "options": ["为了释放GPU显存", "因为PyTorch默认把新梯度累加(inplace add)到.grad上，而不是覆盖", "为了重新随机初始化参数", "为了关闭计算图的构建"],
+      "options": [
+        "为了释放GPU显存",
+        "因为PyTorch默认把新梯度累加(inplace add)到.grad上，而不是覆盖",
+        "为了重新随机初始化参数",
+        "为了关闭计算图的构建"
+      ],
       "answer": "B",
       "explanation": "解析：PyTorch默认对`.grad`做inplace累加而非覆盖，因此每次反向传播前必须清零，否则梯度会跨batch不断累积，导致更新方向错误。"
     },
@@ -123,7 +237,12 @@
       "type": "single",
       "difficulty": "easy",
       "stem": "自定义PyTorch模型时通常继承哪个基类，并需要实现哪个方法来定义前向计算？",
-      "options": ["继承torch.Tensor，实现compute()", "继承torch.nn.Module，实现forward()", "继承torch.optim，实现step()", "继承Dataset，实现__getitem__()"],
+      "options": [
+        "继承torch.Tensor，实现compute()",
+        "继承torch.nn.Module，实现forward()",
+        "继承torch.optim，实现step()",
+        "继承Dataset，实现__getitem__()"
+      ],
       "answer": "B",
       "explanation": "解析：模型通过继承`torch.nn.Module`定义，并自定义`forward()`描述前向计算图。`Dataset`/`__getitem__`是用于数据集而非模型。"
     },
@@ -131,7 +250,12 @@
       "type": "single",
       "difficulty": "medium",
       "stem": "下列MSELoss计算，输出的loss值是多少？\n```python\nmse = nn.MSELoss()\ninput  = torch.tensor([[0., 0, 0]])\ntarget = torch.tensor([[1., 0, -1]])\nprint(mse(input, target))\n```",
-      "options": ["tensor(2.0000)", "tensor(0.6667)", "tensor(0.5000)", "tensor(1.0000)"],
+      "options": [
+        "tensor(2.0000)",
+        "tensor(0.6667)",
+        "tensor(0.5000)",
+        "tensor(1.0000)"
+      ],
       "answer": "B",
       "explanation": "解析：MSE对各元素差平方取均值：$\\frac{(0-1)^2+(0-0)^2+(0-(-1))^2}{3}=\\frac{1+0+1}{3}\\approx0.6667$。"
     },
@@ -139,7 +263,12 @@
       "type": "single",
       "difficulty": "medium",
       "stem": "关于自定义Dataset，下列说法正确的是？",
-      "options": ["必须实现__forward__和__loss__方法", "需继承torch.utils.data.Dataset并实现__len__和__getitem__", "Dataset会自动进行批处理和shuffle", "Dataset只能加载图像数据"],
+      "options": [
+        "必须实现__forward__和__loss__方法",
+        "需继承torch.utils.data.Dataset并实现__len__和__getitem__",
+        "Dataset会自动进行批处理和shuffle",
+        "Dataset只能加载图像数据"
+      ],
       "answer": "B",
       "explanation": "解析：自定义数据集继承`Dataset`并实现`__len__`（返回大小）和`__getitem__`（按索引取样本）。批处理和shuffle是DataLoader的职责，而非Dataset。"
     },
@@ -147,7 +276,12 @@
       "type": "single",
       "difficulty": "easy",
       "stem": "DataLoader相比简单的for循环，主要提供哪些功能？",
-      "options": ["自动求导和反向传播", "批处理(batching)、打乱(shuffle)和多进程并行加载", "自动选择最优的损失函数", "把模型自动搬到GPU"],
+      "options": [
+        "自动求导和反向传播",
+        "批处理(batching)、打乱(shuffle)和多进程并行加载",
+        "自动选择最优的损失函数",
+        "把模型自动搬到GPU"
+      ],
       "answer": "B",
       "explanation": "解析：`DataLoader`把Dataset包装为可迭代对象，提供batching、shuffling和用num_workers的多进程并行加载。自动求导是autograd的功能。"
     },
@@ -155,16 +289,34 @@
       "type": "multiple",
       "difficulty": "medium",
       "stem": "下列关于PyTorch optimizer（优化器）的说法，哪些是正确的？（多选）",
-      "options": ["创建优化器至少需要传入模型参数和学习率", "优化器会自动调用backward()替你计算梯度", "调用optim.step()才会按梯度更新参数", "应在backward()之前调用optim.zero_grad()清零梯度"],
-      "answer": ["A", "C", "D"],
+      "options": [
+        "创建优化器至少需要传入模型参数和学习率",
+        "优化器会自动调用backward()替你计算梯度",
+        "调用optim.step()才会按梯度更新参数",
+        "应在backward()之前调用optim.zero_grad()清零梯度"
+      ],
+      "answer": [
+        "A",
+        "C",
+        "D"
+      ],
       "explanation": "解析：A对，如`SGD(model.parameters(), lr=...)`；C对，`step()`执行参数更新；D对，需先清零再backward。B错，优化器不会替你算梯度，必须自己调用`loss.backward()`。"
     },
     {
       "type": "multiple",
       "difficulty": "medium",
       "stem": "关于PyTorch的计算图与autograd，下列哪些说法正确？（多选）",
-      "options": ["由运算得到的张量会带有grad_fn属性，记录产生它的运算", "PyTorch是动态图，每次前向都会重新构建计算图", "只有标量张量才能直接调用backward()而无需额外参数", "调用backward()后，梯度存放在中间节点而不是叶子节点"],
-      "answer": ["A", "B", "C"],
+      "options": [
+        "由运算得到的张量会带有grad_fn属性，记录产生它的运算",
+        "PyTorch是动态图，每次前向都会重新构建计算图",
+        "只有标量张量才能直接调用backward()而无需额外参数",
+        "调用backward()后，梯度存放在中间节点而不是叶子节点"
+      ],
+      "answer": [
+        "A",
+        "B",
+        "C"
+      ],
       "explanation": "解析：A对，如<AddBackward0>、<MulBackward0>；B对，PyTorch是define-by-run动态图；C对，非标量输出需传入gradient参数。D错，梯度累积到叶子节点（leaf）的`.grad`中。"
     },
     {
@@ -201,6 +353,72 @@
       "stem": "用`nn.Sequential`写出一个输入维度为1、含两个32维隐层（激活用Tanh）、输出维度为1的MLP，并说明如何取得其参数交给优化器。",
       "answer": "```python\nimport torch.nn as nn\n\nneural_network = nn.Sequential(\n    nn.Linear(1, 32),\n    nn.Tanh(),\n    nn.Linear(32, 32),\n    nn.Tanh(),\n    nn.Linear(32, 1)\n)\n\noptim = torch.optim.SGD(neural_network.parameters(), lr=0.05)\n```\n说明：`nn.Sequential`是顺序容器，数据依次流经各层，无需手写forward；`neural_network.parameters()`返回容器中所有层（Linear）的可训练参数，传给优化器即可被更新。",
       "explanation": "解析：考查nn.Sequential的搭建方式与parameters()取参数的用法，Linear实现y=xW^T+b，Tanh为激活函数。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "运行以下代码，输出的形状是什么？\n```python\nrow = torch.tensor([1.0, 2.0, 3.0])    # (3,)\ncol = torch.tensor([[10.0], [20.0]])   # (2,1)\nprint((row + col).shape)\n```",
+      "options": [
+        "torch.Size([3])",
+        "torch.Size([2, 1])",
+        "torch.Size([2, 3])",
+        "报错：形状不匹配"
+      ],
+      "answer": "C",
+      "explanation": "解析：广播规则从最后一维往前对齐：(3,) 与 (2,1)，行向量沿行复制成 (2,3)，列向量沿列复制成 (2,3)，结果形状为 (2,3)。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "以下代码中 `x.grad` 的值是多少？\n```python\nx = torch.tensor(4.0, requires_grad=True)\ny = x ** 2 + 3 * x\ny.backward()\nprint(x.grad)\n```",
+      "options": [
+        "tensor(8.)",
+        "tensor(11.)",
+        "tensor(16.)",
+        "tensor(28.)"
+      ],
+      "answer": "B",
+      "explanation": "解析：y = x^2 + 3x，dy/dx = 2x + 3，代入 x=4 得 2×4+3 = 11，故 x.grad = tensor(11.)。28 是 y 的值而非梯度。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "在例子3的最小训练循环里，如果把 `optim.zero_grad()` 这一行删掉，会发生什么？",
+      "options": [
+        "完全没影响，结果一样",
+        "梯度会跨轮不断累加，导致更新方向错误、训练跑偏",
+        "程序直接报语法错误无法运行",
+        "模型会自动改用 Adam 优化器"
+      ],
+      "answer": "B",
+      "explanation": "解析：PyTorch 默认把新梯度 inplace 累加到 .grad 上而非覆盖。不清零会让历史梯度不断叠加，每次 step 的更新方向就是错的，训练无法正常收敛。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "数据集有 10 条样本，用 `DataLoader(dataset, batch_size=4, shuffle=True)` 迭代一个 epoch，会得到几个 batch、各自的样本数是多少？",
+      "options": [
+        "2 个 batch：5 + 5",
+        "3 个 batch：4 + 4 + 2",
+        "4 个 batch：每个 2 或 3 条",
+        "10 个 batch：每个 1 条"
+      ],
+      "answer": "B",
+      "explanation": "解析：10 条按每批 4 条切分，得到 4 + 4 + 2 共 3 个 batch，最后一批不足 4 条只剩 2 条（默认不丢弃）。shuffle 只改变顺序，不改变批数。"
+    },
+    {
+      "type": "truefalse",
+      "difficulty": "medium",
+      "stem": "在例子2中，对标量 z 调用 `z.backward()` 后，多个叶子张量（如 a、b）的梯度会分别累积到它们各自的 `.grad` 属性中。",
+      "answer": true,
+      "explanation": "解析：正确。一次 backward() 会沿计算图对所有 requires_grad=True 的叶子张量求梯度，并分别写入各自的 .grad（如 a.grad、b.grad），无需逐个手动调用。"
+    },
+    {
+      "type": "short",
+      "difficulty": "medium",
+      "stem": "请按正确顺序写出例子3训练循环中的四个核心步骤（用对应的 PyTorch 调用表示），并各用一句话说明作用。",
+      "answer": "正确顺序与作用：\n1. `y_hat = model(X)` —— forward 前向计算，得到预测；\n2. `loss = loss_fn(y_hat, y)` —— 计算损失（标量），衡量预测与真值的差距；\n3. `optim.zero_grad()` —— 清零上一轮残留梯度，防止累加；\n4. `loss.backward()` —— 反向传播，算出每个参数的梯度并写入 .grad；\n5. `optim.step()` —— 按梯度和学习率更新参数。\n（口诀：zero_grad → forward/loss → backward → step，其中 zero_grad 须在 backward 之前。）",
+      "explanation": "解析：考查训练循环四步的顺序与含义。关键点是 zero_grad 必须在 backward 之前，否则梯度会跨轮累加导致训练失败。"
     }
   ]
 }

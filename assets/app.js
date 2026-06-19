@@ -19,9 +19,12 @@ const App = (() => {
     const inline = (t) => esc(t)
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      // restore $...$ that esc() touched (only < > & inside math are rare; keep simple)
       ;
-    for (let raw of lines) {
+    const isRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+    const isSep = (l) => /^\s*\|[\s:|-]+\|\s*$/.test(l) && l.includes('-');
+    const cells = (l) => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
       const line = raw.replace(/\s+$/, '');
       if (line.trim().startsWith('```')) {
         if (inCode) { html += `<pre><code>${esc(code)}</code></pre>`; code = ''; inCode = false; }
@@ -29,6 +32,21 @@ const App = (() => {
         continue;
       }
       if (inCode) { code += raw + '\n'; continue; }
+      // markdown table: header row + separator row + body rows
+      if (isRow(line) && i + 1 < lines.length && isSep(lines[i + 1])) {
+        flushList();
+        const header = cells(line);
+        i += 2;
+        let body = '';
+        while (i < lines.length && isRow(lines[i])) {
+          const c = cells(lines[i]);
+          body += '<tr>' + c.map(x => `<td>${inline(x)}</td>`).join('') + '</tr>';
+          i++;
+        }
+        i--;
+        html += `<table class="md-table"><thead><tr>${header.map(x => `<th>${inline(x)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+        continue;
+      }
       if (!line.trim()) { flushList(); continue; }
       let m;
       if ((m = line.match(/^>\s?(.*)/))) { flushList(); html += `<div class="note">${inline(m[1])}</div>`; continue; }

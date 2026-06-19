@@ -58,6 +58,8 @@ a:hover { opacity: .85; }
 }
 .topnav a:hover { background: var(--bg-soft); color: var(--text); opacity: 1; }
 .topnav a.active { background: var(--primary-soft); color: var(--primary); }
+.topnav a.pdf-link { background: var(--primary); color: #fff; }
+.topnav a.pdf-link:hover { background: var(--primary); opacity: .9; color: #fff; }
 .search-box { position: relative; margin-left: auto; width: min(320px, 38vw); }
 #globalSearch {
   width: 100%; padding: 9px 14px; border-radius: 10px;
@@ -123,6 +125,10 @@ main { max-width: var(--maxw); margin: 0 auto; padding: 28px 22px 60px; min-heig
 .kp .kp-body p { margin: 8px 0; }
 .kp .kp-body code { background: var(--bg-soft); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
 .kp .kp-body pre { background: var(--bg-soft); padding: 12px 14px; border-radius: 9px; overflow-x: auto; font-size: 13px; }
+.kp-body .md-table, .q-stem .md-table, .explain .md-table { border-collapse: collapse; margin: 10px 0; font-size: 13.5px; width: auto; max-width: 100%; display: block; overflow-x: auto; }
+.md-table th, .md-table td { border: 1px solid var(--border); padding: 5px 11px; text-align: left; white-space: nowrap; }
+.md-table th { background: var(--primary-soft); color: var(--text); font-weight: 600; }
+.md-table tbody tr:nth-child(even) { background: var(--bg-soft); }
 .kp .kp-body .note { border-left: 3px solid var(--accent); padding: 4px 12px; background: var(--bg-soft); border-radius: 6px; margin: 10px 0; color: var(--text-soft); }
 .kp .tags { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { font-size: 12px; background: var(--bg-soft); color: var(--text-soft); padding: 2px 9px; border-radius: 20px; }

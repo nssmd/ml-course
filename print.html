@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>机器学习 · 开卷复习手册</title>
+<link rel="stylesheet" href="./vendor/katex/dist/katex.min.css" />
+<style>
+  @page { size: A4; margin: 15mm 13mm 14mm; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    font-family: "Source Han Serif SC","Noto Serif CJK SC","Songti SC","SimSun","PingFang SC","Microsoft YaHei",serif;
+    color:#16181d; line-height:1.62; font-size:10.5pt; -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 4px; }
+
+  /* cover */
+  .cover { height: 262mm; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; page-break-after:always; }
+  .cover .emoji { font-size:64pt; }
+  .cover h1 { font-size:34pt; margin:6pt 0 0; letter-spacing:2px; }
+  .cover .sub { font-size:14pt; color:#555; margin-top:6pt; }
+  .cover .meta { margin-top:26pt; font-size:11pt; color:#444; }
+  .cover .stats { margin-top:22pt; display:flex; gap:30pt; }
+  .cover .stats b { font-size:22pt; color:#3b39b8; display:block; }
+  .cover .stats span { font-size:9pt; color:#666; }
+  .cover .tip { margin-top:30pt; font-size:9.5pt; color:#888; max-width:380pt; }
+
+  /* table of contents */
+  .toc { page-break-after:always; }
+  .toc h2 { font-size:20pt; border-bottom:2px solid #3b39b8; padding-bottom:6pt; }
+  .toc ol { font-size:11pt; line-height:2; padding-left:20pt; }
+  .toc ol b { color:#3b39b8; }
+  .toc .toc-en { color:#888; font-size:9pt; }
+
+  /* lecture section */
+  .lec { page-break-before: always; }
+  .lec-title { font-size:19pt; color:#fff; background:#3b39b8; padding:8pt 12pt; border-radius:6pt; margin:0 0 4pt; }
+  .lec-title .num { opacity:.7; font-size:12pt; }
+  .lec-title .en { display:block; font-size:9.5pt; opacity:.85; font-weight:normal; margin-top:2pt; }
+  .lec-summary { font-size:9.8pt; color:#333; background:#eef0fb; border-left:3px solid #3b39b8; padding:6pt 10pt; border-radius:0 5pt 5pt 0; margin:6pt 0 10pt; }
+
+  .kp { break-inside: avoid; margin: 0 0 9pt; padding: 7pt 11pt; border:1px solid #e1e4ee; border-radius:6pt; }
+  .kp.example { border-color:#f0c98a; background:#fffaf1; }
+  .kp h3 { font-size:12.5pt; margin:0 0 4pt; color:#23253a; }
+  .kp h3 .n { display:inline-block; min-width:18pt; height:18pt; line-height:18pt; text-align:center; background:#3b39b8; color:#fff; font-size:9pt; border-radius:4pt; margin-right:6pt; }
+  .kp.example h3 .n { background:#e08e2b; }
+  .kp h4 { font-size:11pt; margin:8pt 0 3pt; color:#3b39b8; }
+  .kp p { margin:4pt 0; }
+  .kp ul,.kp ol { margin:4pt 0; padding-left:20pt; }
+  .kp li { margin:2pt 0; }
+  .kp code { background:#f1f2f7; padding:0 4px; border-radius:3px; font-family:"DejaVu Sans Mono",Consolas,monospace; font-size:9pt; }
+  .kp pre { background:#f6f7fb; border:1px solid #e1e4ee; border-radius:5pt; padding:7pt 9pt; overflow-x:auto; font-size:8.6pt; line-height:1.5; break-inside:avoid; }
+  .kp pre code { background:none; padding:0; }
+  .kp .note { border-left:3px solid #2ba0c7; background:#eef9fc; padding:3pt 9pt; border-radius:0 4pt 4pt 0; margin:5pt 0; color:#334; }
+  .kp .md-table { border-collapse:collapse; margin:6pt 0; font-size:8.8pt; break-inside:avoid; }
+  .kp .md-table th,.kp .md-table td { border:1px solid #cdd2e0; padding:2.5pt 6pt; text-align:left; }
+  .kp .md-table th { background:#eef0fb; font-weight:bold; }
+  .kp .md-table tbody tr:nth-child(even) { background:#f7f8fc; }
+  .kp.example .md-table th { background:#f6ead2; }
+  .kp .tags { margin-top:5pt; }
+  .kp .tag { font-size:7.6pt; background:#eef0f6; color:#666; padding:1px 7px; border-radius:10px; margin-right:4px; }
+  .kp.example .tag { background:#f6e6c9; color:#8a5a13; }
+
+  .katex { font-size:1em; }
+  .katex-display { margin:6pt 0; overflow-x:auto; }
+  .katex-display > .katex { font-size:1.02em; }
+  h2.appendix-h { page-break-before:always; font-size:18pt; color:#3b39b8; border-bottom:2px solid #3b39b8; padding-bottom:5pt; }
+  .src-note { color:#999; font-size:8pt; text-align:center; margin-top:8pt; }
+</style>
+</head>
+<body>
+<div class="wrap" id="doc"><p style="padding:40pt;text-align:center;color:#888">正在生成手册…</p></div>
+
+<script defer src="./vendor/katex/dist/katex.min.js"></script>
+<script defer src="./vendor/katex/dist/contrib/auto-render.min.js"></script>
+<script>
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function mdToHtml(src){
+  if(!src) return ''; if(Array.isArray(src)) src=src.join('\n');
+  const lines=String(src).split('\n'); let html='',listType=null,inCode=false,code='';
+  const flush=()=>{ if(listType){ html+=`</${listType}>`; listType=null; } };
+  const inline=t=>esc(t).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  const isRow=l=>/^\s*\|.*\|\s*$/.test(l);
+  const isSep=l=>/^\s*\|[\s:|-]+\|\s*$/.test(l)&&l.includes('-');
+  const cells=l=>l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i]; const line=raw.replace(/\s+$/,'');
+    if(line.trim().startsWith('```')){ if(inCode){html+=`<pre><code>${esc(code)}</code></pre>`;code='';inCode=false;} else {flush();inCode=true;} continue; }
+    if(inCode){ code+=raw+'\n'; continue; }
+    if(isRow(line)&&i+1<lines.length&&isSep(lines[i+1])){
+      flush(); const header=cells(line); i+=2; let body='';
+      while(i<lines.length&&isRow(lines[i])){ const c=cells(lines[i]); body+='<tr>'+c.map(x=>`<td>${inline(x)}</td>`).join('')+'</tr>'; i++; }
+      i--; html+=`<table class="md-table"><thead><tr>${header.map(x=>`<th>${inline(x)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`; continue;
+    }
+    if(!line.trim()){ flush(); continue; }
+    let m;
+    if((m=line.match(/^>\s?(.*)/))){ flush(); html+=`<div class="note">${inline(m[1])}</div>`; continue; }
+    if((m=line.match(/^[-*]\s+(.*)/))){ if(listType!=='ul'){flush();html+='<ul>';listType='ul';} html+=`<li>${inline(m[1])}</li>`; continue; }
+    if((m=line.match(/^\d+\.\s+(.*)/))){ if(listType!=='ol'){flush();html+='<ol>';listType='ol';} html+=`<li>${inline(m[1])}</li>`; continue; }
+    if((m=line.match(/^#{2,4}\s+(.*)/))){ flush(); html+=`<h4>${inline(m[1])}</h4>`; continue; }
+    flush(); html+=`<p>${inline(line)}</p>`;
+  }
+  flush(); if(inCode) html+=`<pre><code>${esc(code)}</code></pre>`;
+  return html;
+}
+const isExample=k=>(k.tags||[]).some(t=>/例题|例子|综合例题/.test(t));
+(async()=>{
+  const idx=await fetch('./data/lectures.json').then(r=>r.json());
+  const lecs=await Promise.all(idx.lectures.map(l=>fetch(`./data/${l.id}.json`).then(r=>r.json()).then(d=>({meta:l,data:d}))));
+  let kpT=0,qT=0; lecs.forEach(x=>{kpT+=x.data.knowledgePoints.length;qT+=x.data.questions.length;});
+  let h='';
+  // cover
+  h+=`<section class="cover">
+    <div class="emoji">🧠</div>
+    <h1>机器学习 · 开卷复习手册</h1>
+    <div class="sub">${esc(idx.subtitle)} · 授课老师 ${esc(idx.instructor)}</div>
+    <div class="meta">全 ${idx.lectures.length} 讲 · 知识点 + 公式 + 手把手例题</div>
+    <div class="stats">
+      <div><b>${idx.lectures.length}</b><span>讲</span></div>
+      <div><b>${kpT}</b><span>知识点 / 例题</span></div>
+      <div><b>${qT}</b><span>配套习题(在线)</span></div>
+    </div>
+    <div class="tip">本手册由课程 PPT 整理生成，含逐题分步详解的例题（橙色框）。在线版含可练习题库：nssmd.github.io/ml-course</div>
+  </section>`;
+  // toc
+  h+=`<section class="toc"><h2>目录</h2><ol>`;
+  lecs.forEach(x=>{ h+=`<li><b>第${x.meta.order}讲 ${esc(x.meta.title)}</b> <span class="toc-en">${esc(x.meta.en||'')}</span> — 知识点/例题 ${x.data.knowledgePoints.length}</li>`; });
+  h+=`</ol></section>`;
+  // lectures
+  lecs.forEach(x=>{
+    const {meta,data}=x;
+    h+=`<section class="lec"><div class="lec-title"><span class="num">第 ${meta.order} 讲　</span>${esc(data.title||meta.title)}<span class="en">${esc(data.subtitle||meta.en||'')}</span></div>`;
+    if(data.summary) h+=`<div class="lec-summary">${mdToHtml(data.summary)}</div>`;
+    data.knowledgePoints.forEach((k,i)=>{
+      h+=`<div class="kp ${isExample(k)?'example':''}"><h3><span class="n">${i+1}</span>${esc(k.title)}</h3><div class="kp-body">${mdToHtml(k.content)}</div>`;
+      if(k.tags&&k.tags.length) h+=`<div class="tags">${k.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`;
+      h+=`</div>`;
+    });
+    h+=`</section>`;
+  });
+  h+=`<p class="src-note">— 机器学习开卷复习手册 · 共 ${kpT} 个知识点与例题 · 仅供学习复习使用 —</p>`;
+  document.getElementById('doc').innerHTML=h;
+  // render math
+  function go(){ renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false}); document.body.setAttribute('data-ready','1'); }
+  if(window.renderMathInElement) go(); else window.addEventListener('load',()=>setTimeout(go,200));
+})();
+</script>
+</body>
+</html>
