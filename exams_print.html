@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>机器学习 · 期末模拟试卷</title>
+<link rel="stylesheet" href="./vendor/katex/dist/katex.min.css" />
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family:"Noto Serif CJK SC","Songti SC","PingFang SC",serif; color:#16181d; line-height:1.6; font-size:10.5pt; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  .cover { height:255mm; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; page-break-after:always; }
+  .cover .emoji{font-size:60pt;} .cover h1{font-size:30pt;margin:6pt 0;} .cover .sub{color:#555;font-size:13pt;}
+  .cover .tip{margin-top:26pt;font-size:10pt;color:#777;max-width:380pt;}
+  .paper { page-break-before:always; }
+  .paper-head { border-bottom:2.5px solid #3b39b8; padding-bottom:8pt; margin-bottom:12pt; text-align:center; }
+  .paper-head h1 { font-size:19pt; margin:2pt 0; }
+  .paper-head .meta { color:#444; font-size:10pt; }
+  .paper-head .code { color:#3b39b8; font-weight:bold; }
+  .sec-title { font-size:13.5pt; font-weight:bold; background:#eef0fb; color:#23253a; padding:5pt 9pt; border-radius:5pt; margin:13pt 0 4pt; break-after:avoid; }
+  .sec-title .pts{font-size:10pt;color:#666;font-weight:normal;}
+  .sec-desc { font-size:9pt; color:#666; margin:3pt 2pt 8pt; }
+  .q { margin:0 0 8pt; break-inside:avoid; }
+  .q-head { font-size:10.5pt; }
+  .q-head .qn{color:#3b39b8;font-weight:bold;} .q-head .pts{color:#888;font-size:9pt;}
+  .opts { padding-left:16pt; margin:3pt 0; }
+  .opts .o { display:inline-block; min-width:46%; font-size:10pt; }
+  .ans { margin:4pt 0 0; padding:5pt 9pt; background:#f6f7fb; border-left:3px solid #16a34a; border-radius:0 4pt 4pt 0; font-size:9.6pt; }
+  .ans .lab{font-weight:bold;color:#16a34a;}
+  .ans h4{font-size:10pt;margin:5pt 0 2pt;color:#3b39b8;}
+  .ans p{margin:3pt 0;} .ans ul,.ans ol{margin:3pt 0;padding-left:18pt;}
+  .ans .md-table{border-collapse:collapse;margin:4pt 0;font-size:8.6pt;}
+  .ans .md-table th,.ans .md-table td{border:1px solid #cdd2e0;padding:2pt 5pt;}
+  .ans .md-table th{background:#eef0fb;}
+  .katex{font-size:1em;} .katex-display{margin:5pt 0;overflow-x:auto;}
+</style>
+</head>
+<body>
+<div class="wrap" id="doc"><p style="padding:40pt;text-align:center;color:#888">生成中…</p></div>
+<script defer src="./vendor/katex/dist/katex.min.js"></script>
+<script defer src="./vendor/katex/dist/contrib/auto-render.min.js"></script>
+<script>
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function mdToHtml(src){
+  if(!src) return ''; if(Array.isArray(src)) src=src.join('\n');
+  const lines=String(src).split('\n'); let html='',lt=null,inC=false,code='';
+  const flush=()=>{if(lt){html+=`</${lt}>`;lt=null;}};
+  const il=t=>esc(t).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  const isRow=l=>/^\s*\|.*\|\s*$/.test(l), isSep=l=>/^\s*\|[\s:|-]+\|\s*$/.test(l)&&l.includes('-');
+  const cells=l=>l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i], line=raw.replace(/\s+$/,'');
+    if(line.trim().startsWith('```')){ if(inC){html+=`<pre>${esc(code)}</pre>`;code='';inC=false;}else{flush();inC=true;} continue;}
+    if(inC){code+=raw+'\n';continue;}
+    if(isRow(line)&&i+1<lines.length&&isSep(lines[i+1])){flush();const h=cells(line);i+=2;let b='';while(i<lines.length&&isRow(lines[i])){b+='<tr>'+cells(lines[i]).map(x=>`<td>${il(x)}</td>`).join('')+'</tr>';i++;}i--;html+=`<table class="md-table"><thead><tr>${h.map(x=>`<th>${il(x)}</th>`).join('')}</tr></thead><tbody>${b}</tbody></table>`;continue;}
+    if(!line.trim()){flush();continue;}
+    let m;
+    if((m=line.match(/^[-*]\s+(.*)/))){if(lt!=='ul'){flush();html+='<ul>';lt='ul';}html+=`<li>${il(m[1])}</li>`;continue;}
+    if((m=line.match(/^\d+\.\s+(.*)/))){if(lt!=='ol'){flush();html+='<ol>';lt='ol';}html+=`<li>${il(m[1])}</li>`;continue;}
+    if((m=line.match(/^#{2,4}\s+(.*)/))){flush();html+=`<h4>${il(m[1])}</h4>`;continue;}
+    flush();html+=`<p>${il(line)}</p>`;
+  }
+  flush(); return html;
+}
+const LET='ABCDEFGH';
+function optsHtml(q){
+  if(q.type==='truefalse') return `<div class="opts"><span class="o">A. 正确（√）</span><span class="o">B. 错误（×）</span></div>`;
+  if(q.options) return `<div class="opts">${q.options.map((o,k)=>`<span class="o">${LET[k]}. ${esc(o)}</span>`).join('')}</div>`;
+  return '';
+}
+function ansHtml(q){
+  let a;
+  if(q.type==='truefalse') a=q.answer?'正确（√）':'错误（×）';
+  else if(q.type==='multiple') a=[].concat(q.answer).join('、');
+  else if(q.type==='single') a=q.answer;
+  else a=null;
+  return `<div class="ans"><span class="lab">${a!==null?'参考答案：'+esc(a):'参考答案'}</span>`
+    + (q.answer&&a===null?mdToHtml(q.answer):'')
+    + (q.explanation?`<h4>解析</h4>${mdToHtml(q.explanation)}`:'')
+    + `</div>`;
+}
+(async()=>{
+  const idx=await fetch('./data/lectures.json').then(r=>r.json());
+  const exams=idx.exams||[];
+  const datas=await Promise.all(exams.map(e=>fetch(`./data/${e.id}.json`).then(r=>r.json())));
+  let h=`<section class="cover"><div class="emoji">📝</div><h1>机器学习 · 期末模拟试卷</h1>
+    <div class="sub">${esc(idx.subtitle)} · 授课老师 ${esc(idx.instructor)}</div>
+    <div class="sub" style="margin-top:8pt">共 ${exams.length} 套 · 每套 100 分 · 判断/选择/简答/计算/系统设计</div>
+    <div class="tip">仿照课程期末样卷命制，严格遵循课程 PPT 口径。建议先限时 120 分钟闭卷作答，再对照各题下方的【参考答案】与解析。</div></section>`;
+  datas.forEach(d=>{
+    h+=`<section class="paper"><div class="paper-head"><h1>${esc(d.title)} <span class="code">${esc(d.code||'')}</span></h1>
+      <div class="meta">满分 ${d.totalPoints||100} 分　建议用时 ${esc(d.duration||'120分钟')}　${esc(d.note||'开卷')}</div></div>`;
+    (d.sections||[]).forEach(sec=>{
+      const sp=sec.questions.reduce((s,q)=>s+(q.points||0),0);
+      h+=`<div class="sec-title">${esc(sec.name)} <span class="pts">（${sp} 分）</span></div>`;
+      if(sec.desc) h+=`<div class="sec-desc">${esc(sec.desc)}</div>`;
+      sec.questions.forEach((q,n)=>{
+        const qq={...q,type:q.type||sec.type};
+        h+=`<div class="q"><div class="q-head"><span class="qn">${n+1}.</span> ${esc(q.stem)} <span class="pts">（${q.points}分）</span></div>${optsHtml(qq)}${ansHtml(qq)}</div>`;
+      });
+    });
+    h+=`</section>`;
+  });
+  document.getElementById('doc').innerHTML=h;
+  function go(){renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false});document.body.setAttribute('data-ready','1');}
+  if(window.renderMathInElement) go(); else window.addEventListener('load',()=>setTimeout(go,200));
+})();
+</script>
+</body>
+</html>

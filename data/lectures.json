@@ -2,6 +2,11 @@
   "course": "机器学习",
   "subtitle": "Machine Learning · 2026 春",
   "instructor": "顾小东",
+  "exams": [
+    { "id": "exam1", "title": "期末模拟试卷（一）", "code": "A卷", "points": 100 },
+    { "id": "exam2", "title": "期末模拟试卷（二）", "code": "B卷", "points": 100 },
+    { "id": "exam3", "title": "期末模拟试卷（三）", "code": "C卷", "points": 100 }
+  ],
   "lectures": [
     { "id": "l1",  "order": 1,  "title": "机器学习导论",      "en": "Introduction",            "icon": "🎯", "desc": "机器学习的定义、范式与四大核心要素" },
     { "id": "l2",  "order": 2,  "title": "线性回归",          "en": "Linear Regression",       "icon": "📈", "desc": "最小二乘、正规方程与梯度下降" },

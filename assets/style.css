@@ -172,6 +172,27 @@ html[data-theme="dark"] .opt.wrong { background: #3a1414; }
 
 .empty { text-align: center; color: var(--text-soft); padding: 60px; }
 
+/* ---------- exam papers ---------- */
+.exam-paper { max-width: 860px; margin: 0 auto; }
+.exam-header { border-bottom: 2px solid var(--primary); padding-bottom: 14px; margin-bottom: 18px; }
+.exam-header h1 { font-size: 26px; margin: 4px 0; }
+.exam-code { font-size: 15px; color: var(--text-soft); font-weight: 500; }
+.exam-info { color: var(--text-soft); font-size: 14px; margin-bottom: 10px; }
+.exam-sec { margin: 26px 0; }
+.exam-sec-title { font-size: 19px; margin: 0 0 4px; padding: 7px 12px; background: var(--primary-soft); color: var(--primary); border-radius: 8px; }
+.exam-sec-pts { font-size: 14px; color: var(--text-soft); font-weight: 500; }
+.exam-sec-desc { font-size: 13px; color: var(--text-soft); margin: 6px 2px 12px; }
+.exam-q { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.exam-q-head { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.exam-qn { color: var(--primary); font-weight: 700; flex: none; }
+.exam-stem { font-size: 15.5px; font-weight: 600; flex: 1; }
+.exam-pts { color: var(--text-soft); font-size: 13px; flex: none; }
+.exam-opts { display: flex; flex-direction: column; gap: 5px; margin: 9px 0 4px; padding-left: 18px; }
+.exam-opt { font-size: 14.5px; }
+.exam-reveal { margin-top: 6px; padding: 5px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; font-size: 13px; }
+.exam-reveal:hover { background: var(--bg-soft); }
+.exam-q .explain { margin-top: 10px; }
+
 /* KaTeX: let long display formulas scroll horizontally instead of overflowing the card */
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0 8px; }
 .katex-display > .katex { white-space: nowrap; }

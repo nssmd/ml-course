@@ -132,7 +132,7 @@ const App = (() => {
           <div class="stat"><b>${totalKp}</b><span>知识点</span></div>
           <div class="stat"><b>${totalQ}</b><span>题目</span></div>
         </div>
-        <p class="sub">点击讲次查看知识点讲解，或前往 <a href="#/quiz">题库练习</a> 自测。</p>
+        <p class="sub">点击讲次查看知识点讲解，前往 <a href="#/quiz">题库练习</a> 自测，或做 <a href="#/exams">期末模拟卷</a>。</p>
       </section>
       <h2 class="section-title">📖 课程讲次</h2>
       <div class="grid">${cards}</div>`;
@@ -358,6 +358,117 @@ const App = (() => {
   let _seed = 1;
   function pseudo() { _seed = (_seed * 9301 + 49297) % 233280; return _seed / 233280; }
 
+  /* ---------- exams (mock papers) ---------- */
+  const examCache = {};
+  async function getExam(id) {
+    if (examCache[id]) return examCache[id];
+    const d = await fetch(`./data/${id}.json`).then(r => r.ok ? r.json() : null);
+    examCache[id] = d;
+    return d;
+  }
+
+  async function viewExams() {
+    const idx = await getIndex();
+    const exams = idx.exams || [];
+    const datas = await Promise.all(exams.map(e => getExam(e.id)));
+    const cards = exams.map((e, i) => {
+      const d = datas[i] || {};
+      const nQ = (d.sections || []).reduce((s, sec) => s + sec.questions.length, 0);
+      const types = (d.sections || []).map(s => s.name.replace(/^[一二三四五六、]+/, '')).join(' · ');
+      return `<a class="card" href="#/exam/${e.id}">
+        <div class="c-top"><span class="c-icon">📝</span>
+          <div><div class="c-order">${esc(e.code || '')} · ${e.points || 100} 分</div><h3 class="c-title">${esc(e.title)}</h3></div></div>
+        <div class="c-desc">${esc(types)}</div>
+        <div class="c-meta"><span>题量 <b>${nQ}</b></span><span>满分 <b>${e.points || 100}</b></span></div>
+      </a>`;
+    }).join('');
+    appEl.innerHTML = `
+      <div class="lec-head">
+        <h1>📝 期末模拟试卷</h1>
+        <div class="en">仿照课程样卷（判断 / 选择 / 简答 / 计算 / 系统设计）· 开卷 · 附参考答案</div>
+        <div class="summary">建议<strong>限时 120 分钟、合上答案先做一遍</strong>，再逐题对照参考答案与解析。题目严格按课程 PPT 口径命制。
+          <div style="margin-top:10px"><a class="pill active" href="./机器学习模拟试卷.pdf" download>📥 下载三套试卷打印版 PDF（含参考答案）</a></div>
+        </div>
+      </div>
+      <div class="grid">${cards}</div>`;
+  }
+
+  const CN_NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  function examOptionsHtml(q) {
+    if (q.type === 'truefalse') {
+      return `<div class="exam-opts"><span class="exam-opt">A. 正确（√）</span><span class="exam-opt">B. 错误（×）</span></div>`;
+    }
+    if (q.options) {
+      return `<div class="exam-opts">${q.options.map((o, k) => `<span class="exam-opt">${LETTERS[k]}. ${esc(o)}</span>`).join('')}</div>`;
+    }
+    return '';
+  }
+  function examAnswerHtml(q) {
+    let ans;
+    if (q.type === 'truefalse') ans = q.answer ? '正确（√）' : '错误（×）';
+    else if (q.type === 'multiple') ans = [].concat(q.answer).join('、');
+    else if (q.type === 'single') ans = q.answer;
+    else ans = null; // open question
+    return `
+      ${ans !== null ? `<div class="ex-head">参考答案：<span class="ex-ans">${esc(ans)}</span></div>` : `<div class="ex-head">参考答案</div>`}
+      ${q.answer && ans === null ? `<div>${mdToHtml(q.answer)}</div>` : ''}
+      ${q.explanation ? `<div class="ex-head" style="margin-top:8px">解析</div><div>${mdToHtml(q.explanation)}</div>` : ''}`;
+  }
+
+  async function viewExam(id) {
+    const idx = await getIndex();
+    const meta = (idx.exams || []).find(e => e.id === id);
+    const d = await getExam(id);
+    if (!d) { appEl.innerHTML = `<div class="empty">未找到该试卷。<br><a href="#/exams">返回试卷列表</a></div>`; return; }
+    let gi = 0; // global question counter for answer toggles
+    const sections = (d.sections || []).map(sec => {
+      const secPts = sec.questions.reduce((s, q) => s + (q.points || 0), 0);
+      const qs = sec.questions.map((q, n) => {
+        const qid = gi++;
+        const qtype = q.type || sec.type;
+        const qq = { ...q, type: qtype };
+        return `<div class="exam-q">
+          <div class="exam-q-head"><span class="exam-qn">${n + 1}.</span><span class="exam-stem">${esc(q.stem)}</span><span class="exam-pts">（${q.points} 分）</span></div>
+          ${examOptionsHtml(qq)}
+          <button class="exam-reveal" data-ex="${qid}">显示答案</button>
+          <div class="explain" id="exa-${qid}">${examAnswerHtml(qq)}</div>
+        </div>`;
+      }).join('');
+      return `<section class="exam-sec">
+        <h2 class="exam-sec-title">${esc(sec.name)} <span class="exam-sec-pts">（${secPts} 分）</span></h2>
+        ${sec.desc ? `<div class="exam-sec-desc">${esc(sec.desc)}</div>` : ''}
+        ${qs}
+      </section>`;
+    }).join('');
+    appEl.innerHTML = `
+      <div class="exam-paper">
+        <div class="exam-header">
+          <div class="crumb"><a href="#/exams">模拟卷</a> / ${esc(meta ? meta.code : '')}</div>
+          <h1>${esc(d.title)} <span class="exam-code">${esc(d.code || '')}</span></h1>
+          <div class="exam-info">满分 ${d.totalPoints || 100} 分 · 建议用时 ${esc(d.duration || '120分钟')} · ${esc(d.note || '开卷')}</div>
+          <div class="q-actions"><button id="exRevealAll" class="btn-primary">显示全部答案</button><button id="exHideAll">隐藏全部答案</button></div>
+        </div>
+        ${sections}
+      </div>`;
+    appEl.querySelectorAll('.exam-reveal').forEach(btn => {
+      btn.onclick = () => {
+        const ex = document.getElementById(`exa-${btn.dataset.ex}`);
+        const open = ex.classList.toggle('show');
+        btn.textContent = open ? '隐藏答案' : '显示答案';
+      };
+    });
+    document.getElementById('exRevealAll').onclick = () => {
+      appEl.querySelectorAll('.explain').forEach(e => e.classList.add('show'));
+      appEl.querySelectorAll('.exam-reveal').forEach(b => b.textContent = '隐藏答案');
+    };
+    document.getElementById('exHideAll').onclick = () => {
+      appEl.querySelectorAll('.explain').forEach(e => e.classList.remove('show'));
+      appEl.querySelectorAll('.exam-reveal').forEach(b => b.textContent = '显示答案');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    renderMath(appEl);
+  }
+
   /* ---------- search ---------- */
   async function buildSearch() {
     if (searchIndex) return searchIndex;
@@ -399,6 +510,8 @@ const App = (() => {
       if (parts[0] === 'lectures') return void await viewHome();
       if (parts[0] === 'lecture') return void await viewLecture(parts[1]);
       if (parts[0] === 'quiz') return void await viewQuiz(parts[1] || null);
+      if (parts[0] === 'exams') return void await viewExams();
+      if (parts[0] === 'exam') return void await viewExam(parts[1]);
       await viewHome();
     } catch (e) {
       appEl.innerHTML = `<div class="empty">加载出错：${esc(e.message)}<br><a href="#/">返回首页</a></div>`;
@@ -408,7 +521,7 @@ const App = (() => {
   }
 
   function setActiveNav(key) {
-    const map = { '': 'home', 'home': 'home', 'lectures': 'lectures', 'lecture': 'lectures', 'quiz': 'quiz' };
+    const map = { '': 'home', 'home': 'home', 'lectures': 'lectures', 'lecture': 'lectures', 'quiz': 'quiz', 'exams': 'exams', 'exam': 'exams' };
     const active = map[key] || 'home';
     document.querySelectorAll('.topnav a').forEach(a => a.classList.toggle('active', a.dataset.nav === active));
   }
