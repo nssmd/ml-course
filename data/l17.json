@@ -2,7 +2,7 @@
   "id": "l17",
   "title": "强化学习",
   "subtitle": "Reinforcement Learning",
-  "summary": "强化学习研究智能体(Agent)如何在与环境交互的动态过程中，通过试错学习一个策略 $\\pi$ 以最大化长期累积奖励 $R_t=\\sum_{i\\ge t}\\gamma^{i-t}r_i$。本讲从马尔可夫决策过程(MDP)建模出发，依次讲解值函数与Q函数、贝尔曼递推、蒙特卡洛与时序差分(TD)、Q-Learning/SARSA、DQN、策略梯度(REINFORCE)、Actor-Critic与优势函数，并以AlphaGo、PPO/GRPO等案例收束到大模型对齐。",
+  "summary": "强化学习研究智能体(Agent)如何在与环境交互的动态过程中，通过试错学习一个策略 $\\pi$ 以最大化长期累积奖励 $R_t=\\sum_{i\\ge t}\\gamma^{i-t}r_i$。本讲从马尔可夫决策过程(MDP)建模出发，依次讲解值函数与Q函数、Q 值的递归与迭代估算、蒙特卡洛与时序差分(TD)、Q-Learning、DQN、策略梯度(REINFORCE)、Actor-Critic与优势函数，并以AlphaGo、PPO/GRPO等案例收束到大模型对齐。",
   "knowledgePoints": [
     {
       "title": "第三类学习范式：强化学习概览",
@@ -42,7 +42,7 @@
     },
     {
       "title": "动作值函数 Q(s,a) 与最优策略",
-      "content": "**Q 函数(动作值函数, action-value function)** 度量在状态 $s$ 执行动作 $a$ 后，能获得的 **期望总未来回报**：\n$$Q(s_t,a_t)=\\mathbb{E}[R_t\\mid s_t,a_t]$$\n它相当于给每个 `(状态, 动作)` 对打分 `score(state, action)`。\n\nQ 函数 **隐式定义了最优策略**：在任意状态 $s$ 下，选择使 Q 值最大的动作即为最优动作：\n$$\\pi^{\\star}(s)=\\arg\\max_{a}Q(s,a)$$\n直觉：好的策略应当在每个状态选择“未来回报最大”的动作。\n\n与之相对，**状态值函数(state-value function)** $V^{\\pi}(s)=\\mathbb{E}[R_t\\mid s]$ 只评估“处在状态 $s$ 有多好”，是对所有动作按策略求期望后的标量。二者关系：$V^{\\pi}(s)=\\mathbb{E}_{a\\sim\\pi}[Q^{\\pi}(s,a)]$。",
+      "content": "**Q 函数(动作值函数, action-value function)** 度量在状态 $s$ 执行动作 $a$ 后，能获得的 **期望总未来回报**：\n$$Q(s_t,a_t)=\\mathbb{E}[R_t\\mid s_t,a_t]$$\n它相当于给每个 `(状态, 动作)` 对打分 `score(state, action)`。\n\nQ 函数 **隐式定义了最优策略**：在任意状态 $s$ 下，选择使 Q 值最大的动作即为最优动作：\n$$\\pi^{\\star}(s)=\\arg\\max_{a}Q(s,a)$$\n直觉：好的策略应当在每个状态选择“未来回报最大”的动作。\n\n(后续 Actor-Critic 还会用到 **状态值函数(state-value function)** $V^{\\pi}(s)=\\mathbb{E}[R_t\\mid s]$，它只评估“处在状态 $s$ 有多好”，是对动作按策略求期望后的标量。)",
       "tags": [
         "Q函数",
         "值函数",
@@ -50,17 +50,17 @@
       ]
     },
     {
-      "title": "贝尔曼方程：Q 值的递归结构",
-      "content": "Q 值具有 **递归(recursive)结构**——当前状态的 Q 值依赖于下一状态的 Q 值，这就是 **贝尔曼方程(Bellman Equation)** 的核心思想。\n\n推导(对最优 Q)：\n$$Q(s_t,a_t)=\\mathbb{E}[r_t+\\gamma r_{t+1}+\\gamma^2 r_{t+2}+\\cdots]=r_t+\\gamma\\,\\mathbb{E}[r_{t+1}+\\gamma r_{t+2}+\\cdots]$$\n$$=r_t+\\gamma\\max_{a'}Q(s_{t+1},a')$$\n\n即把无穷级数“折叠”成 **即时奖励 + 折扣的未来最优 Q 值**。这给出了两类估计 Q 的思路：\n\n- **简单更新(Q 定义直接代入)**：$Q(s,a)\\leftarrow r+\\gamma\\max_{a'}Q(s',a')$。\n- **更稳健的增量更新(时序差分)**：$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,[r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)]$，其中 $\\alpha$ 是学习率，括号内是 TD 误差。\n\n贝尔曼方程是动态规划、Q-Learning、DQN 等几乎所有值方法的理论基石。",
+      "title": "Q 值的递归结构与迭代估算",
+      "content": "Q 值具有 **递归(recursive)结构**——当前状态的 Q 值依赖于下一状态的 Q 值。\n\n推导(对最优 Q)：\n$$Q(s_t,a_t)=\\mathbb{E}[r_t+\\gamma r_{t+1}+\\gamma^2 r_{t+2}+\\cdots]=r_t+\\gamma\\,\\mathbb{E}[r_{t+1}+\\gamma r_{t+2}+\\cdots]$$\n$$=r_t+\\gamma\\max_{a'}Q(s_{t+1},a')$$\n\n即把无穷级数“折叠”成 **即时奖励 + 折扣的未来最优 Q 值**。这给出了两类估计 Q 的思路：\n\n- **简单更新(Q 定义直接代入)**：$Q(s,a)\\leftarrow r+\\gamma\\max_{a'}Q(s',a')$。\n- **更稳健的增量更新(时序差分)**：$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,[r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)]$，其中 $\\alpha$ 是学习率，括号内是 TD 误差。\n\n这一递归思想(基于对下一状态的估计来更新当前 Q)是 Q-Learning、DQN 等值方法的理论基石。",
       "tags": [
-        "贝尔曼方程",
         "递归",
-        "动态规划"
+        "Q值",
+        "迭代估算"
       ]
     },
     {
       "title": "估计 Q 值的两条路：蒙特卡洛 vs 时序差分",
-      "content": "如何计算 Q 值？讲义给出两大方案，区别在于 **用什么来近似未来回报**：\n\n**方案一：蒙特卡洛预演 (Monte-Carlo Rollout)**\n- 思想：依赖重复随机采样获得数值结果(如用随机投点估计圆面积)。最朴素地认为 **值(value) = 平均累计奖励(mean return)**。\n- 做法：用策略 $\\pi$ 从 $s_t$ 采样 $N$ 个完整片段(episode)，计算每个片段的真实累计回报 $R_t$，再取平均更新 Q：\n$$Q(s_t,a_t)=\\mathbb{E}[R_t\\mid s_t,a_t]\\approx\\frac{1}{N}\\sum_{i=1}^{N}R_t^{(i)}$$\n- 特点：使用 **真实回报(use real return)**，无偏(unbiased)，但 **必须等整局结束** 才能更新，且方差大。\n\n**方案二：时序差分 (Temporal-Difference, TD)**\n- 思想：用 **下一状态的估计值** 代替剩余真实回报(use the value from the next state)，即贝尔曼自举(bootstrapping)。\n- 更新：$Q(s_t,a_t)\\leftarrow Q(s_t,a_t)+\\alpha[r+\\gamma\\max_{a'}Q(s_{t+1},a')-Q(s_t,a_t)]$。\n- 特点：**单步即可更新**，方差小、效率高，但因依赖自身估计而 **可能有偏(biased)**。",
+      "content": "如何计算 Q 值？讲义给出两大方案，区别在于 **用什么来近似未来回报**：\n\n**方案一：蒙特卡洛预演 (Monte-Carlo Rollout)**\n- 思想：依赖重复随机采样获得数值结果(如用随机投点估计圆面积)。最朴素地认为 **值(value) = 平均累计奖励(mean return)**。\n- 做法：用策略 $\\pi$ 从 $s_t$ 采样 $N$ 个完整片段(episode)，计算每个片段的真实累计回报 $R_t$，再取平均更新 Q：\n$$Q(s_t,a_t)=\\mathbb{E}[R_t\\mid s_t,a_t]\\approx\\frac{1}{N}\\sum_{i=1}^{N}R_t^{(i)}$$\n- 特点：使用 **真实回报(use real return)**，无偏(unbiased)，但 **必须等整局结束** 才能更新，且方差大。\n\n**方案二：时序差分 (Temporal-Difference, TD)**\n- 思想：用 **下一状态的估计值** 代替剩余真实回报(use the value from the next state)，即自举(bootstrapping)。\n- 更新：$Q(s_t,a_t)\\leftarrow Q(s_t,a_t)+\\alpha[r+\\gamma\\max_{a'}Q(s_{t+1},a')-Q(s_t,a_t)]$。\n- 特点：**单步即可更新**，方差小、效率高，但因依赖自身估计而 **可能有偏(biased)**。",
       "tags": [
         "蒙特卡洛",
         "时序差分",
@@ -70,7 +70,7 @@
     },
     {
       "title": "Q-Learning 算法与网格世界示例",
-      "content": "**Q-Learning** 用一张查找表(lookup table)记录所有 `(s,a)` 对的 Q 分数，并基于 TD 思想反复更新，直到收敛。\n\n核心更新式：\n$$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,[\\,r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)\\,]$$\n(简化版直接令 $Q(s,a)\\leftarrow r+\\gamma\\max_{a'}Q(s',a')$。)\n\n**网格世界(Grid World)示例**：\n- 设非终止状态每步奖励 $r=-0.04$(鼓励尽快到达目标)，终止格子给 $\\pm1$。\n- 初始化 Q 表全为 0，从起点出发；每走一步用更新式回填 Q 值，例如 $Q(s_0,a_\\uparrow)\\leftarrow -0.04+\\gamma\\max(0,0,0)=-0.04$。\n- 到达终止状态后重新开始(start over)，多轮迭代后 Q 表收敛。\n- 最终从 Q 表中读出每个格子的最优动作 $\\arg\\max_a Q(s,a)$，即得到一张 **策略地图**。\n\n关键点：Q-Learning 在更新目标里用 $\\max_{a'}$(贪婪)，因此学到的是 **最优策略的 Q 值**，属于 off-policy 方法(下一知识点详述)。",
+      "content": "**Q-Learning** 用一张查找表(lookup table)记录所有 `(s,a)` 对的 Q 分数，并基于 TD 思想反复更新，直到收敛。\n\n核心更新式：\n$$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,[\\,r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)\\,]$$\n(简化版直接令 $Q(s,a)\\leftarrow r+\\gamma\\max_{a'}Q(s',a')$。)\n\n**网格世界(Grid World)示例**：\n- 设非终止状态每步奖励 $r=-0.04$(鼓励尽快到达目标)，终止格子给 $\\pm1$。\n- 初始化 Q 表全为 0，从起点出发；每走一步用更新式回填 Q 值，例如 $Q(s_0,a_\\uparrow)\\leftarrow -0.04+\\gamma\\max(0,0,0)=-0.04$。\n- 到达终止状态后重新开始(start over)，多轮迭代后 Q 表收敛。\n- 最终从 Q 表中读出每个格子的最优动作 $\\arg\\max_a Q(s,a)$，即得到一张 **策略地图**。\n\n关键点：Q-Learning 的更新目标里用 $\\max_{a'}$(贪婪)，因此学到的是 **最优策略对应的 Q 值**。多轮迭代后，算法就为每个状态(格子)总结出一套动作策略。",
       "tags": [
         "Q-Learning",
         "网格世界",
@@ -78,14 +78,12 @@
       ]
     },
     {
-      "title": "探索 vs 利用与 ε-greedy；Q-Learning(off-policy) 与 SARSA(on-policy)",
-      "content": "RL 必须平衡 **探索(Exploration)** 与 **利用(Exploitation)**：一味选当前最优(利用)可能错过更好动作；一味随机(探索)又学不到好策略。\n\n**ε-greedy 策略**：以概率 $\\varepsilon$ 随机选一个动作(探索)，以概率 $1-\\varepsilon$ 选 $\\arg\\max_a Q(s,a)$(利用)。训练初期 $\\varepsilon$ 大、后期逐渐衰减。这正对应 DQN 算法中“以概率 $\\varepsilon$ 选随机动作，否则选 $\\max_a Q$”的采样步骤。\n\n**off-policy vs on-policy**(理解 Q-Learning 与 SARSA 的区别)：\n\n- **Q-Learning(off-policy)**：更新目标用 $\\max_{a'}Q(s',a')$——不管实际下一步采的是什么动作，都按“最优动作”更新。行为策略(ε-greedy)与学习的目标策略(贪婪)可以不同。\n- **SARSA(on-policy)**：更新目标用实际采到的下一动作 $a'$，即 $Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma Q(s',a')-Q(s,a)]$；学习的就是当前行为策略本身。\n\n直觉：Q-Learning 更“激进”(学最优)，SARSA 更“保守”(学实际执行的、含探索风险的策略)。",
+      "title": "探索与利用：ε-greedy 采样",
+      "content": "在训练 RL 智能体(如 DQN)时，需要平衡 **探索(Exploration)** 与 **利用(Exploitation)**：一味选当前最优动作(利用)可能错过更好的动作；一味随机(探索)又学不到好策略。\n\n**ε-greedy 采样**：以概率 $\\varepsilon$ 随机选一个动作(探索)，以概率 $1-\\varepsilon$ 选 $\\arg\\max_a Q(s,a)$(利用)。\n\n这正是 DQN 算法采样步骤所用的策略——讲义的 Deep Q-learning 算法中写道：\n\n> With probability $\\varepsilon$ select a random action $a_t$, otherwise select $a_t=\\max_a Q^{\\star}(s_t,a;\\theta)$.\n\n直觉：万一某个当前 Q 值偏低的动作其实更好，但因没试过而分数虚低，只“利用”就永远发现不了；探索就是给这些动作一个被尝试的机会。实践中常在训练初期把 $\\varepsilon$ 设大(多探索)，随训练逐渐衰减(多利用)。",
       "tags": [
         "探索利用",
         "ε-greedy",
-        "Q-Learning",
-        "SARSA",
-        "off-policy"
+        "DQN采样"
       ]
     },
     {
@@ -99,7 +97,7 @@
     },
     {
       "title": "深度 Q 网络 (DQN) 与经验回放、目标网络",
-      "content": "**DQN(Deep Q-Network)** 用深度神经网络(如 CNN)近似 Q 函数 $Q_\\theta(s,a)$，把状态(如游戏画面图像)作为输入。常见输出形式：输入状态 $s$，一次性输出所有动作的 Q 值 $Q_\\theta(s,a_1),\\dots$。\n\n**学习目标(回归到贝尔曼目标)**：以 $y=r_t+\\gamma\\max_a Q_\\theta(s_{t+1},a)$ 为目标，最小化均方误差(MSE)：\n$$\\ell(\\theta)=\\big\\|\\,(r_t+\\gamma\\max_a Q_\\theta(s_{t+1},a))-Q_\\theta(s_t,a_t)\\,\\big\\|^2$$\n预测过程：对新状态 $s$ 计算所有 $Q_\\theta(s,a)$，选 $a=\\arg\\max_a Q_\\theta(s,a)$。\n\n**两大稳定化技巧**：\n\n- **经验回放(Experience Replay)**：把多回合的转移 $(s,a,r,s')$ 存入回放缓冲区 $D$，训练时从中 **随机采样小批量(mini-batch)**。这打破样本间时间相关性，提高数据利用率。\n- **目标网络(Target Network)**：直接用同一个 $\\theta$ 既算目标又算预测会导致 **目标非平稳(non-stationary target)**、训练震荡。解决办法是用一套 **固定的旧参数 $\\theta_{old}$** 计算目标，每隔 $C$ 步才同步一次：\n$$\\nabla_{\\theta_t}L=\\mathbb{E}_{(s,a,r,s')\\sim D}\\big[(r+\\gamma\\max_{a'}Q(s',a';\\theta_{old})-Q(s,a;\\theta_t))\\,\\nabla_{\\theta_t}Q(s,a;\\theta_t)\\big]$$",
+      "content": "**DQN(Deep Q-Network)** 用深度神经网络(如 CNN)近似 Q 函数 $Q_\\theta(s,a)$，把状态(如游戏画面图像)作为输入。常见输出形式：输入状态 $s$，一次性输出所有动作的 Q 值 $Q_\\theta(s,a_1),\\dots$。\n\n**学习目标(回归到 TD 目标)**：以 $y=r_t+\\gamma\\max_a Q_\\theta(s_{t+1},a)$ 为目标，最小化均方误差(MSE)：\n$$\\ell(\\theta)=\\big\\|\\,(r_t+\\gamma\\max_a Q_\\theta(s_{t+1},a))-Q_\\theta(s_t,a_t)\\,\\big\\|^2$$\n预测过程：对新状态 $s$ 计算所有 $Q_\\theta(s,a)$，选 $a=\\arg\\max_a Q_\\theta(s,a)$。\n\n**两大稳定化技巧**：\n\n- **经验回放(Experience Replay)**：把多回合的转移 $(s,a,r,s')$ 存入回放缓冲区 $D$，训练时从中 **随机采样小批量(mini-batch)**。这打破样本间时间相关性，提高数据利用率。\n- **目标网络(Target Network)**：直接用同一个 $\\theta$ 既算目标又算预测会导致 **目标非平稳(non-stationary target)**、训练震荡。解决办法是用一套 **固定的旧参数 $\\theta_{old}$** 计算目标，每隔 $C$ 步才同步一次：\n$$\\nabla_{\\theta_t}L=\\mathbb{E}_{(s,a,r,s')\\sim D}\\big[(r+\\gamma\\max_{a'}Q(s',a';\\theta_{old})-Q(s,a;\\theta_t))\\,\\nabla_{\\theta_t}Q(s,a;\\theta_t)\\big]$$",
       "tags": [
         "DQN",
         "经验回放",
@@ -171,7 +169,7 @@
     },
     {
       "title": "📝 例题2：手把手做一次 Q-learning 更新",
-      "content": "**目标**：把更新公式 $Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)]$ 里的每个符号都换成数字算一遍。\n\n**题目设定**：智能体在状态 $s$ 选了动作 $a$(\"向右\")，环境给奖励 $r=5$ 并把它带到新状态 $s'$。学习率 $\\alpha=0.5$，折扣 $\\gamma=0.9$。当前 Q 表里的几个数已知：\n\n- 旧值 $Q(s,a)=2$\n- 新状态 $s'$ 有三个可选动作，它们当前的 Q 值是：$Q(s',\\uparrow)=10$，$Q(s',\\downarrow)=3$，$Q(s',\\rightarrow)=6$\n\n**问**：更新后的 $Q(s,a)$ 变成多少？\n\n---\n\n**第一步：先算 $\\max_{a'}Q(s',a')$ —— 在新状态里挑最大的那个 Q**\n\n$$\\max_{a'}Q(s',a')=\\max(10,\\;3,\\;6)=10$$\n\n> 为什么取 max？因为 Q-learning 假设“到了 $s'$ 之后我会走最优动作”，所以用未来最好的那个 Q 值。这就是它 **off-policy(离策略)** 的来源。\n\n**第二步：算 TD 目标(target) = 即时奖励 + 折扣后的未来最优 Q**\n\n$$\\text{target}=r+\\gamma\\max_{a'}Q(s',a')=5+0.9\\times10=5+9=14$$\n\n**第三步：算 TD 误差(error) = 目标 − 当前估计**\n\n$$\\delta=\\text{target}-Q(s,a)=14-2=12$$\n\n> $\\delta=12$ 是正的，说明“实际比我原来想的好”，所以这个动作的 Q 值应该往上调。\n\n**第四步：按学习率 $\\alpha$ 把旧值往目标方向挪一点**\n\n$$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,\\delta=2+0.5\\times12=2+6=\\mathbf{8}$$\n\n---\n\n> **理解 $\\alpha$ 的作用**：$\\alpha=0.5$ 表示“只朝目标走一半”。如果 $\\alpha=1$，直接跳到 $Q=14$；如果 $\\alpha$ 很小(如 0.1)，则更新很慢、更稳。本例里 Q 从 $2$ 更新到了 $8$，正好是 $2$ 和目标 $14$ 的“中点”。",
+      "content": "**目标**：把更新公式 $Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma\\max_{a'}Q(s',a')-Q(s,a)]$ 里的每个符号都换成数字算一遍。\n\n**题目设定**：智能体在状态 $s$ 选了动作 $a$(\"向右\")，环境给奖励 $r=5$ 并把它带到新状态 $s'$。学习率 $\\alpha=0.5$，折扣 $\\gamma=0.9$。当前 Q 表里的几个数已知：\n\n- 旧值 $Q(s,a)=2$\n- 新状态 $s'$ 有三个可选动作，它们当前的 Q 值是：$Q(s',\\uparrow)=10$，$Q(s',\\downarrow)=3$，$Q(s',\\rightarrow)=6$\n\n**问**：更新后的 $Q(s,a)$ 变成多少？\n\n---\n\n**第一步：先算 $\\max_{a'}Q(s',a')$ —— 在新状态里挑最大的那个 Q**\n\n$$\\max_{a'}Q(s',a')=\\max(10,\\;3,\\;6)=10$$\n\n> 为什么取 max？因为 Q-learning 假设“到了 $s'$ 之后我会走最优动作”，所以更新目标里用未来最好的那个 Q 值。\n\n**第二步：算 TD 目标(target) = 即时奖励 + 折扣后的未来最优 Q**\n\n$$\\text{target}=r+\\gamma\\max_{a'}Q(s',a')=5+0.9\\times10=5+9=14$$\n\n**第三步：算 TD 误差(error) = 目标 − 当前估计**\n\n$$\\delta=\\text{target}-Q(s,a)=14-2=12$$\n\n> $\\delta=12$ 是正的，说明“实际比我原来想的好”，所以这个动作的 Q 值应该往上调。\n\n**第四步：按学习率 $\\alpha$ 把旧值往目标方向挪一点**\n\n$$Q(s,a)\\leftarrow Q(s,a)+\\alpha\\,\\delta=2+0.5\\times12=2+6=\\mathbf{8}$$\n\n---\n\n> **理解 $\\alpha$ 的作用**：$\\alpha=0.5$ 表示“只朝目标走一半”。如果 $\\alpha=1$，直接跳到 $Q=14$；如果 $\\alpha$ 很小(如 0.1)，则更新很慢、更稳。本例里 Q 从 $2$ 更新到了 $8$，正好是 $2$ 和目标 $14$ 的“中点”。",
       "tags": [
         "例题"
       ]
@@ -179,13 +177,6 @@
     {
       "title": "📝 例题3：ε-greedy 探索 vs 利用怎么选动作",
       "content": "**目标**：用骰子的思路搞懂 ε-greedy 到底是怎么在“探索”和“利用”之间做选择的。\n\n**题目设定**：智能体在某状态 $s$ 下有 4 个动作，当前 Q 表为：\n\n| 动作 | $\\leftarrow$ | $\\uparrow$ | $\\rightarrow$ | $\\downarrow$ |\n|---|---|---|---|---|\n| Q 值 | 2 | **8** | 5 | 1 |\n\n探索率 $\\varepsilon=0.1$。\n\n**问**：(1) 哪个动作是“利用(贪婪)”动作？(2) 选到它的总概率是多少？(3) 每个动作各自被选中的概率？\n\n---\n\n**第一步：找出贪婪动作 = Q 值最大的那个**\n\n$$a^\\star=\\arg\\max_a Q(s,a)=\\uparrow\\quad(\\text{因为 }Q=8\\text{ 最大})$$\n\n这就是“**利用(Exploitation)**”要选的动作——用已学到的知识选当前最好的。\n\n**第二步：理解 ε-greedy 的两种情况**\n\n- 以概率 $1-\\varepsilon=0.9$ → **利用**：直接选贪婪动作 $\\uparrow$。\n- 以概率 $\\varepsilon=0.1$ → **探索**：从全部 4 个动作里 **均匀随机** 挑一个(每个 $0.1/4=0.025$)。\n\n> 为什么要探索？万一某个现在 Q 值低的动作其实更好，但因为没试过所以分数虚低，只“利用”就永远发现不了。探索就是给冷门动作一个被尝试的机会。\n\n**第三步：算每个动作的总概率**\n\n非贪婪动作(只能靠探索被选中)：\n$$P(\\leftarrow)=P(\\rightarrow)=P(\\downarrow)=\\frac{\\varepsilon}{4}=\\frac{0.1}{4}=0.025$$\n\n贪婪动作 $\\uparrow$(利用时一定选它 + 探索时也可能随机抽到它)：\n$$P(\\uparrow)=\\underbrace{(1-\\varepsilon)}_{\\text{利用}}+\\underbrace{\\frac{\\varepsilon}{4}}_{\\text{探索抽中}}=0.9+0.025=\\mathbf{0.925}$$\n\n**第四步：验算总概率是否为 1**\n\n$$0.925+0.025+0.025+0.025=1.000\\;\\checkmark$$\n\n---\n\n> **结论**：贪婪动作 $\\uparrow$ 有 $92.5\\%$ 的概率被选中(主要靠利用)，其余动作各 $2.5\\%$(纯靠探索)。训练初期常把 $\\varepsilon$ 设大(多探索)，后期逐渐衰减到很小(多利用)。",
-      "tags": [
-        "例题"
-      ]
-    },
-    {
-      "title": "📝 例题4：同一步转移，SARSA 与 Q-learning 算出不同的更新",
-      "content": "**目标**：用 **同一条数据** 分别跑 Q-learning(off-policy) 和 SARSA(on-policy)，亲眼看到两者更新结果不同。\n\n**题目设定**：智能体经历了一段经历 $(s,a,r,s',a')$：在 $s$ 选 $a$，得 $r=0$，到 $s'$，然后 **实际**(按 ε-greedy)选了动作 $a'=\\downarrow$。参数 $\\alpha=0.5$，$\\gamma=1$(为简化不打折)。已知：\n\n- 旧值 $Q(s,a)=0$\n- 在 $s'$ 处：$Q(s',\\uparrow)=10$(最大)，$Q(s',\\downarrow)=2$，$Q(s',\\rightarrow)=4$\n- 注意：实际采到的下一动作是 $a'=\\downarrow$，对应 $Q(s',\\downarrow)=2$，**不是**最大的那个。\n\n**问**：两种算法各把 $Q(s,a)$ 更新成多少？\n\n---\n\n**写出两个更新公式的差别(只差中间一项)**：\n\n- Q-learning：$Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma\\,\\mathbf{\\max_{a'}Q(s',a')}-Q(s,a)]$ —— 用 **最大** Q\n- SARSA：$\\;\\;Q(s,a)\\leftarrow Q(s,a)+\\alpha[r+\\gamma\\,\\mathbf{Q(s',a')}-Q(s,a)]$ —— 用 **实际采到的动作** $a'$ 的 Q\n\n---\n\n**Q-learning(off-policy)：用 $\\max$**\n\n1. 未来项：$\\max_{a'}Q(s',a')=\\max(10,2,4)=10$\n2. 目标：$r+\\gamma\\cdot10=0+1\\times10=10$\n3. 误差：$10-Q(s,a)=10-0=10$\n4. 更新：$Q(s,a)\\leftarrow0+0.5\\times10=\\mathbf{5}$\n\n**SARSA(on-policy)：用实际动作 $a'=\\downarrow$ 的 Q=2**\n\n1. 未来项：$Q(s',a')=Q(s',\\downarrow)=2$\n2. 目标：$r+\\gamma\\cdot2=0+1\\times2=2$\n3. 误差：$2-Q(s,a)=2-0=2$\n4. 更新：$Q(s,a)\\leftarrow0+0.5\\times2=\\mathbf{1}$\n\n---\n\n**对比结果**：\n\n| 算法 | 用的未来 Q | 目标 | 更新后 $Q(s,a)$ |\n|---|---|---|---|\n| Q-learning | $\\max=10$ | 10 | **5** |\n| SARSA | 实际 $a'$ 的 $Q=2$ | 2 | **1** |\n\n> **直觉总结**：Q-learning **更激进**——不管你实际怎么走，都假设“接下来我会走最优动作($\\max$)”，所以学到的是最优策略的价值。SARSA **更保守**——它老老实实用“你实际(带探索)走的那个动作”来更新，因此学到的是“包含探索风险的真实行为策略”。这就是 off-policy 与 on-policy 的核心区别。",
       "tags": [
         "例题"
       ]
@@ -247,7 +238,7 @@
     {
       "type": "single",
       "difficulty": "medium",
-      "stem": "贝尔曼方程将 $Q(s_t,a_t)$ 递归地写成下列哪种形式？",
+      "stem": "利用 Q 值的递归结构，可把 $Q(s_t,a_t)$ 折叠成下列哪种形式？",
       "options": [
         "$Q(s_t,a_t)=r_t\\cdot\\gamma\\cdot\\max_{a'}Q(s_{t+1},a')$",
         "$Q(s_t,a_t)=r_t+\\gamma\\max_{a'}Q(s_{t+1},a')$",
@@ -392,13 +383,6 @@
     {
       "type": "truefalse",
       "difficulty": "medium",
-      "stem": "Q-Learning 在更新目标中使用 $\\max_{a'}Q(s',a')$(贪婪动作)，因此它是一种 off-policy(离策略)算法；而 SARSA 使用实际采取的下一动作，是 on-policy(在策略)算法。",
-      "answer": true,
-      "explanation": "正确。Q-Learning 的目标用 $\\max$(目标策略=贪婪，与行为策略 ε-greedy 不同)，属 off-policy；SARSA 用实际下一动作 $a'$ 更新，学习的就是行为策略本身，属 on-policy。"
-    },
-    {
-      "type": "truefalse",
-      "difficulty": "medium",
       "stem": "在 AlphaGo 中，策略网络用于缩小搜索的宽度(breadth)，值网络用于缩小搜索的深度(depth)。",
       "answer": true,
       "explanation": "正确。策略网络输出落子概率，只展开有希望的着法以减少分支宽度；值网络直接评估局面，避免一路模拟到终局以减少搜索深度。"
@@ -455,13 +439,6 @@
       ],
       "answer": "A",
       "explanation": "先取 $\\max_{a'}Q(s',a')=8$；目标 $=r+\\gamma\\max=2+0.5\\times8=6$；TD误差 $=6-1=5$；更新 $Q\\leftarrow1+0.5\\times5=1+2.5=3.5$。"
-    },
-    {
-      "type": "truefalse",
-      "difficulty": "medium",
-      "stem": "在 例题4 的同一步转移中(实际下一动作 $a'=\\downarrow$ 对应 $Q=2$，而 $s'$ 处最大 Q 为 10)，SARSA 与 Q-learning 会算出相同的更新结果。",
-      "answer": false,
-      "explanation": "不相同。Q-learning 用 $\\max=10$ 得目标 10、更新到 5；SARSA 用实际动作的 $Q=2$ 得目标 2、更新到 1。因为实际动作不是最优动作，二者结果不同——这正是 off-policy 与 on-policy 的区别所在。"
     },
     {
       "type": "single",

@@ -70,11 +70,11 @@
     },
     {
       "title": "朴素贝叶斯算法流程",
-      "content": "完整算法分训练与预测两段：\n\n**训练阶段：**\n```\nfor each class c do\n    p̂(c) ← estimate P(c)               // 频率\n    for each attribute value x_i do\n        p̂(x_i | c) ← estimate P(x_i|c)  // 计数 + 平滑\n    end\nend\n```\n\n**预测阶段：**\n$$c_{NB}=\\arg\\max_{c\\in C}\\,P(c)\\prod_{i=1}^{d}P(x_i\\mid c)$$\n\n- 训练只需**一遍扫描计数**，是典型的 **eager learning(急切学习)**，模型一旦建好预测极快。\n- 实际实现中由于多个小概率连乘会**数值下溢**，常改为对数域相加：$\\arg\\max_c\\big[\\log P(c)+\\sum_i\\log P(x_i\\mid c)\\big]$。\n- 模型可**在线增量更新**：新增/删除样本只需调整计数，易于维护。",
+      "content": "完整算法分训练与预测两段：\n\n**训练阶段：**\n```\nfor each class c do\n    p̂(c) ← estimate P(c)               // 频率\n    for each attribute value x_i do\n        p̂(x_i | c) ← estimate P(x_i|c)  // 计数 + 平滑\n    end\nend\n```\n\n**预测阶段：**\n$$c_{NB}=\\arg\\max_{c\\in C}\\,P(c)\\prod_{i=1}^{d}P(x_i\\mid c)$$\n\n- 训练只需**一遍扫描计数**，是典型的 **eager learning(急切学习)**，模型一旦建好预测极快。\n- 模型可在**增删训练样本**时只调整计数，易于维护更新。",
       "tags": [
         "算法流程",
         "急切学习",
-        "对数概率"
+        "增量更新"
       ]
     },
     {
@@ -276,12 +276,6 @@
       "stem": "极大似然估计先验时，直接用类别频率 $\\hat P(c)=\\frac{n_c}{N}$ 即可，其中 $n_c$ 是类别为 $c$ 的样本数、$N$ 是样本总数。",
       "answer": true,
       "explanation": "正确。在多项分布假设下，样本频率正是先验的极大似然估计，故 $\\hat P(c)=\\frac{n_c}{N}$，训练只需计数。"
-    },
-    {
-      "type": "short",
-      "difficulty": "medium",
-      "stem": "为什么实际实现朴素贝叶斯时常把连乘 $P(c)\\prod_i P(x_i\\mid c)$ 改写为对数域的求和？请写出对应的判别式。",
-      "answer": "**原因：数值下溢(underflow)。** 文档/特征维度高时，多个介于 0 和 1 之间的小概率连乘会迅速趋近于 0，超出浮点数表示范围，造成数值下溢和精度损失。\n\n**对数变换：** 由于 $\\log$ 是单调递增函数，$\\arg\\max$ 不变，可把连乘转为求和：\n$$c_{NB}=\\arg\\max_{c\\in C}\\Big[\\log P(c)+\\sum_{i=1}^{d}\\log P(x_i\\mid c)\\Big]$$\n这样既避免下溢，又把乘法换成更稳定、更高效的加法。"
     },
     {
       "type": "short",

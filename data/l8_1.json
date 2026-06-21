@@ -24,7 +24,7 @@
     },
     {
       "title": "Tensor张量：基本数据结构",
-      "content": "**Tensor**是PyTorch中最基本的数据结构（类似NumPy的`ndarray`，但能在GPU上运算并参与自动求导）。\n\n创建张量：\n```python\nimport torch\n\n# 从Python列表创建，可指定dtype\nx = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float)\nW = torch.tensor([[0.1, 0.2, 0.3],\n                  [0.4, 0.1, 0.7],\n                  [0.8, 0.1, 0.2]])\n\n# 创建全0张量（指定形状与dtype）\nr = torch.zeros([1, 3], dtype=torch.long)\nones = torch.ones(2, 3)\nrnd = torch.rand(2, 3)   # [0,1)均匀分布\n```\n\nTensor与NumPy互转（共享内存，零拷贝）：\n```python\nimport numpy as np\n\nx_np = np.array([0.1, 0.2, 0.3])\nx_torch = torch.from_numpy(x_np)   # numpy -> tensor\nback = x_torch.numpy()             # tensor -> numpy\n```\n\n> 常用属性：`x.shape`/`x.size()`查看形状，`x.dtype`查看类型，`x.view(-1, d)`改变形状。",
+      "content": "**Tensor**是PyTorch中最基本的数据结构（类似NumPy的`ndarray`，但能在GPU上运算并参与自动求导）。\n\n创建张量：\n```python\nimport torch\n\n# 从Python列表创建，可指定dtype\nx = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float)\nW = torch.tensor([[0.1, 0.2, 0.3],\n                  [0.4, 0.1, 0.7],\n                  [0.8, 0.1, 0.2]])\n\n# 创建全0张量（指定形状与dtype）\nr = torch.zeros([1, 3], dtype=torch.long)\nrnd = torch.rand(2, 3)   # [0,1)均匀分布\n```\n\nTensor与NumPy互转（共享内存，零拷贝）：\n```python\nimport numpy as np\n\nx_np = np.array([0.1, 0.2, 0.3])\nx_torch = torch.from_numpy(x_np)   # numpy -> tensor\nback = x_torch.numpy()             # tensor -> numpy\n```\n\n> 常用属性：`x.shape`/`x.size()`查看形状，`x.dtype`查看类型，`x.view(-1, d)`改变形状（MLP预测时即用其把数据整理成`(样本数, d)`）。",
       "tags": [
         "Tensor",
         "张量",
@@ -42,7 +42,7 @@
     },
     {
       "title": "autograd自动求导与backward()",
-      "content": "PyTorch的**autograd**会自动沿计算图反向传播，一次性计算所有梯度。对标量输出的张量调用`.backward()`即可。\n\n标量函数求导，例如 $f(x)=(x-2)^2$，求 $f'(1)$：\n```python\ndef f(x):\n    return (x - 2) ** 2\n\nx = torch.tensor([1.0], requires_grad=True)\ny = f(x)\ny.backward()          # 对叶子变量反向传播\nprint(x.grad)         # tensor([-2.])，即 f'(1)=2*(1-2)=-2\n```\n\n向量函数同理，例如 $g(w)=2w_1 w_2 + w_2\\cos(w_1)$，求 $\\nabla_w g$：\n```python\ndef g(w):\n    return 2 * w[0] * w[1] + w[1] * torch.cos(w[0])\n\nw = torch.tensor([np.pi, 1.0], requires_grad=True)\nz = g(w)\nz.backward()\nprint(w.grad)   # tensor([2.0000, 5.2832])，与解析解一致\n```\n\n要点：\n- 只能对**标量**直接`backward()`；若输出是向量，需传入与之同形的`gradient`参数。\n- 反向传播后梯度存于叶子张量的`.grad`属性中。\n- 推理时可用`with torch.no_grad():`关闭图构建以节省显存。",
+      "content": "PyTorch的**autograd**会自动沿计算图反向传播，一次性计算所有梯度。对标量输出的张量调用`.backward()`即可。\n\n标量函数求导，例如 $f(x)=(x-2)^2$，求 $f'(1)$：\n```python\ndef f(x):\n    return (x - 2) ** 2\n\nx = torch.tensor([1.0], requires_grad=True)\ny = f(x)\ny.backward()          # 对叶子变量反向传播\nprint(x.grad)         # tensor([-2.])，即 f'(1)=2*(1-2)=-2\n```\n\n向量函数同理，例如 $g(w)=2w_1 w_2 + w_2\\cos(w_1)$，求 $\\nabla_w g$：\n```python\ndef g(w):\n    return 2 * w[0] * w[1] + w[1] * torch.cos(w[0])\n\nw = torch.tensor([np.pi, 1.0], requires_grad=True)\nz = g(w)\nz.backward()\nprint(w.grad)   # tensor([2.0000, 5.2832])，与解析解一致\n```\n\n要点：\n- 只能对**标量**直接`backward()`；若输出是向量，需传入与之同形的`gradient`参数。\n- 反向传播后梯度存于叶子张量的`.grad`属性中。\n- 再次`backward()`前若不清零，梯度会累加到`.grad`上（详见优化器一节）。",
       "tags": [
         "autograd",
         "backward",
@@ -88,7 +88,7 @@
     },
     {
       "title": "训练循环：forward, loss, backward, step",
-      "content": "PyTorch训练的标准节奏（Rhythm）：\n1. 用内置类**设计模型（Model）**；\n2. 选定**损失函数与优化器**；\n3. 进入**训练循环（forward → backward → update）**。\n\n标准训练循环模板：\n```python\nfor epoch in range(n_epochs):\n    y_hat = model(X)            # 1) forward 前向\n    loss = loss_func(y_hat, y)  # 2) 计算损失\n    optim.zero_grad()           # 3) 梯度清零\n    loss.backward()             # 4) backward 反向传播\n    optim.step()                # 5) step 更新参数\n```\n\n若不用优化器，手动更新参数也能说明本质：\n```python\nw = torch.tensor([1.0], requires_grad=True)\n\ndef forward(x):\n    return x * w\n\nfor epoch in range(10):\n    for x_val, y_val in zip(x_data, y_data):\n        y_pred = forward(x_val)\n        l = (y_pred - y_val) ** 2\n        l.backward()\n        # 在 no_grad 下手动更新权重\n        with torch.no_grad():\n            w -= 0.01 * w.grad\n        w.grad.zero_()   # 手动清零，否则梯度会累加\n```\n\n> 记忆口诀：**zero_grad → forward/loss → backward → step**，四步缺一不可。",
+      "content": "PyTorch训练的标准节奏（Rhythm）：\n1. 用内置类**设计模型（Model）**；\n2. 选定**损失函数与优化器**；\n3. 进入**训练循环（forward → backward → update）**。\n\n标准训练循环模板：\n```python\nfor epoch in range(n_epochs):\n    y_hat = model(X)            # 1) forward 前向\n    loss = loss_func(y_hat, y)  # 2) 计算损失\n    optim.zero_grad()           # 3) 梯度清零\n    loss.backward()             # 4) backward 反向传播\n    optim.step()                # 5) step 更新参数\n```\n\n若不用优化器，手动更新参数也能说明本质（PPT中的forward/backward写法）：\n```python\nw = torch.Tensor([1.0])   # 任意初值\n\ndef forward(x):\n    return x * w\n\ndef loss(x, y):\n    y_pred = forward(x)\n    return (y_pred - y) * (y_pred - y)\n\nfor epoch in range(10):\n    for x_val, y_val in zip(x_data, y_data):\n        l = loss(x_val, y_val)\n        l.backward()\n        # 手动按梯度更新权重\n        w.data = w.data - 0.01 * w.grad.data\n        # 更新后手动清零梯度，否则会累加\n        w.grad.data.zero_()\n```\n\n> 记忆口诀：**zero_grad → forward/loss → backward → step**，四步缺一不可。",
       "tags": [
         "训练循环",
         "forward",
@@ -106,13 +106,12 @@
       ]
     },
     {
-      "title": "GPU加速与detach",
-      "content": "PyTorch通过CUDA支持GPU加速，把张量和模型搬到GPU上即可：\n```python\ndevice = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\nmodel = model.to(device)\nX = X.to(device)            # 张量也要搬到同一设备\ny_hat = model(X)\nresult = y_hat.cpu()        # 取回CPU（如要转numpy）\n```\n\n> 注意：参与同一运算的张量必须在**同一设备**上，否则报错。\n\n**`detach()`**：从计算图中分离张量，得到一个`requires_grad=False`的副本，常用于可视化或仅取数值、不再求导的场景：\n```python\n# 预测与可视化时切断梯度，再转 numpy\ny_pred = neural_network(X_grid)\nplt.plot(X_grid.detach().numpy(), y_pred.detach().numpy(), 'r')\n```\n\n要点：\n- 带`requires_grad=True`的张量不能直接`.numpy()`，需先`.detach()`。\n- 推理时整体可用`with torch.no_grad():`，效果是不构建计算图、更省显存。",
+      "title": "detach()：从计算图分离张量",
+      "content": "**`detach()`**：从计算图中分离张量，得到一个`requires_grad=False`的副本，常用于可视化或仅取数值、不再求导的场景。\n\n在MLP实例的预测与可视化阶段，PyTorch正是用`detach()`切断梯度后再转`numpy`绘图：\n```python\n# 预测与可视化时切断梯度，再转 numpy\ny_hat = neural_network(X_grid)\nplt.plot(X_grid.detach().numpy(), y_hat.detach().numpy(), 'r')\nplt.show()\n```\n\n要点：\n- 带`requires_grad=True`的张量参与了计算图，不能直接`.numpy()`，需先`.detach()`分离。\n- `detach()`只取数值、不再追踪梯度，适合画图或记录中间结果。",
       "tags": [
-        "GPU",
-        "CUDA",
         "detach",
-        "to"
+        "可视化",
+        "计算图"
       ]
     },
     {
@@ -126,8 +125,8 @@
       ]
     },
     {
-      "title": "📝 例子1：创建张量并做加减、广播、reshape",
-      "content": "我们从最基础的张量操作练起，把张量当成一个会算数的多维数组。\n\n```python\nimport torch\n\n# 1) 创建两个张量（一维向量）\na = torch.tensor([1.0, 2.0, 3.0])\nb = torch.tensor([10.0, 20.0, 30.0])\n\n# 2) 逐元素加减（形状相同，对应位置相加）\nprint(a + b)   # tensor([11., 22., 33.])\nprint(b - a)   # tensor([ 9., 18., 27.])\n\n# 3) 广播(broadcasting)：形状不同也能算\n#    标量会自动“扩展”到每个元素\nprint(a + 100) # tensor([101., 102., 103.])\n\n# 4) 行向量 + 列向量 的广播\nrow = torch.tensor([1.0, 2.0, 3.0])      # 形状 (3,)\ncol = torch.tensor([[10.0], [20.0]])     # 形状 (2,1)\nprint(row + col)\n# tensor([[11., 12., 13.],\n#         [21., 22., 23.]])  ->  形状 (2,3)\n\n# 5) reshape：改变形状但不改变元素\nx = torch.arange(6)        # tensor([0,1,2,3,4,5])，形状 (6,)\nprint(x.reshape(2, 3))     # 变成 2 行 3 列\nprint(x.view(3, 2))        # view 也能改形状（要求内存连续）\nprint(x.reshape(-1, 2))    # -1 表示“自动算这一维” -> (3,2)\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **创建张量**：`torch.tensor([...])` 把 Python 列表变成张量。加 `.0` 让元素是浮点数（`float`），因为后面做梯度/训练时几乎都用浮点。\n2. **逐元素加减**：当两个张量**形状完全相同**时，`+`、`-` 就是把对应位置的数分别运算，结果形状不变。这和 NumPy 完全一致。\n3. **广播（broadcasting）**：`a + 100` 中 100 是标量，PyTorch 会把它**自动扩展**成 `[100,100,100]` 再相加。这样我们不用手动复制，既省代码又省内存。\n4. **行列广播**：形状 `(3,)` 和 `(2,1)` 相加，PyTorch 按规则把两边都“撑”成 `(2,3)`：行向量沿行复制、列向量沿列复制。**记规则**：从最后一维往前比，维度相等或其中一个为 1 才能广播。\n5. **reshape / view**：`reshape(2,3)` 把 6 个元素重新排成 2×3，**元素顺序不变、个数不变**。`-1` 是占位符，表示“这一维你帮我算”，因为 6÷2=3 所以 `(-1,2)` 得到 `(3,2)`。\n\n> 小贴士：`view` 要求张量在内存里是连续的，遇到报错可改用 `reshape`，它更稳妥。形状不匹配且不满足广播规则时会直接报错，这也是初学最常见的 bug。",
+      "title": "📝 例子1：创建张量并与 NumPy 互转",
+      "content": "我们从最基础的张量定义练起，复现 PPT 中“如何定义数据”的写法。\n\n```python\nimport torch\nimport numpy as np\n\n# 1) 从 Python 列表创建张量，可指定 dtype\nx = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float)\nW = torch.tensor([[0.1, 0.2, 0.3],\n                  [0.4, 0.1, 0.7],\n                  [0.8, 0.1, 0.2]])\nprint(x)\nprint(W)\n\n# 2) 创建全 0 张量（指定形状与 dtype）\nr = torch.zeros([1, 3], dtype=torch.long)\nprint(r)        # tensor([[0, 0, 0]])\n\n# 3) 从 NumPy 数组创建张量\nx_np = np.array([0.1, 0.2, 0.3])\nx_torch = torch.from_numpy(x_np)   # numpy -> tensor\nprint(x_torch)\n\n# 4) 张量再转回 NumPy\nback = x_torch.numpy()             # tensor -> numpy\nprint(back)\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **`torch.tensor([...])`**：把 Python 列表变成张量；`dtype=torch.float` 指定浮点类型，因为训练几乎都用浮点。二维列表则得到矩阵 `W`。\n2. **`torch.zeros([1,3], dtype=torch.long)`**：按给定形状创建全 0 张量，`long` 表示整型，常用于存放标签/索引。\n3. **`torch.from_numpy(x_np)`**：把已有的 NumPy 数组包装成张量，两者通常共享底层内存（零拷贝）。\n4. **`.numpy()`**：把张量转回 NumPy 数组，方便和 matplotlib、pandas 等库衔接。\n\n> 小贴士：Tensor 与 ndarray 用法非常相似，所以从 NumPy 迁移到 PyTorch 几乎无缝；区别在于 Tensor 还能在 GPU 上运算并参与自动求导。",
       "tags": [
         "例子"
       ]
@@ -148,7 +147,7 @@
     },
     {
       "title": "📝 例子4：用 Dataset + DataLoader 取一个 batch",
-      "content": "数据多了就不能一次全塞进模型，要**分批（batch）**喂。`Dataset` 负责“按编号取一条样本”，`DataLoader` 负责“打包成一批、还能打乱”。\n\n```python\nimport torch\nfrom torch.utils.data import Dataset, DataLoader\n\n# 1) 自定义数据集：必须实现 __len__ 和 __getitem__\nclass MyDataset(Dataset):\n    def __init__(self):\n        # 10 个样本：特征 x 和标签 y\n        self.x = torch.arange(10).float().reshape(10, 1)  # 0~9\n        self.y = self.x * 2                               # y = 2x\n\n    def __len__(self):\n        return len(self.x)            # 让 len(dataset) 知道有多少样本\n\n    def __getitem__(self, idx):\n        return self.x[idx], self.y[idx]   # 按下标返回第 idx 条 (特征, 标签)\n\n# 2) 实例化数据集\ndataset = MyDataset()\nprint('样本总数:', len(dataset))     # 10\nprint('第0条样本:', dataset[0])      # (tensor([0.]), tensor([0.]))\n\n# 3) 用 DataLoader 打包：每批 4 条，并打乱顺序\nloader = DataLoader(dataset, batch_size=4, shuffle=True)\n\n# 4) 取出第一个 batch 看看\nfor xb, yb in loader:\n    print('一个 batch 的特征形状:', xb.shape)   # torch.Size([4, 1])\n    print('一个 batch 的标签形状:', yb.shape)   # torch.Size([4, 1])\n    print(xb)\n    break   # 只看第一批就退出\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **继承 `Dataset`**：自定义数据集只需实现两个方法。`__len__` 告诉框架“一共多少条”，`__getitem__(idx)` 告诉框架“第 idx 条长什么样”。有了这两个，`DataLoader` 才知道怎么取数。\n2. **`__getitem__` 返回一条样本**：这里返回 `(特征, 标签)` 元组。注意它每次只取**一条**，分批的活儿交给 DataLoader。\n3. **`DataLoader(dataset, batch_size=4, shuffle=True)`**：\n   - `batch_size=4`：每次自动把 4 条样本**堆叠**成一个批，单条 `(1,)` 堆成 `(4,1)`；\n   - `shuffle=True`：每个 epoch 打乱顺序，避免模型记住数据排列，提升泛化。\n4. **遍历取 batch**：`for xb, yb in loader` 每次拿到一批。`xb.shape` 是 `(4,1)`，正好可以直接喂给 `nn.Linear(1, ...)`。在真实训练里，就是把例子3的循环改成“外层 epoch、内层遍历 loader 取 batch”。\n\n> 为什么不用普通 for 循环手动切片？因为 DataLoader 还能用 `num_workers` 开多进程并行读数据、自动 shuffle 和堆叠，又快又省心。10 条样本、batch=4，会分成 4+4+2 三批。",
+      "content": "数据多了就不能一次全塞进模型，要**分批（batch）**喂。`Dataset` 负责“按编号取一条样本”，`DataLoader` 负责“打包成一批、还能打乱”。\n\n```python\nimport torch\nfrom torch.utils.data import Dataset, DataLoader\n\n# 1) 自定义数据集：必须实现 __len__ 和 __getitem__\nclass MyDataset(Dataset):\n    def __init__(self):\n        # 10 个样本：特征 x 和标签 y\n        self.x = torch.tensor([[float(i)] for i in range(10)])  # 0~9，形状 (10,1)\n        self.y = self.x * 2                               # y = 2x\n\n    def __len__(self):\n        return len(self.x)            # 让 len(dataset) 知道有多少样本\n\n    def __getitem__(self, idx):\n        return self.x[idx], self.y[idx]   # 按下标返回第 idx 条 (特征, 标签)\n\n# 2) 实例化数据集\ndataset = MyDataset()\nprint('样本总数:', len(dataset))     # 10\nprint('第0条样本:', dataset[0])      # (tensor([0.]), tensor([0.]))\n\n# 3) 用 DataLoader 打包：每批 4 条，并打乱顺序\nloader = DataLoader(dataset, batch_size=4, shuffle=True)\n\n# 4) 取出第一个 batch 看看\nfor xb, yb in loader:\n    print('一个 batch 的特征形状:', xb.shape)   # torch.Size([4, 1])\n    print('一个 batch 的标签形状:', yb.shape)   # torch.Size([4, 1])\n    print(xb)\n    break   # 只看第一批就退出\n```\n\n**逐步讲解（每步为什么）：**\n\n1. **继承 `Dataset`**：自定义数据集只需实现两个方法。`__len__` 告诉框架“一共多少条”，`__getitem__(idx)` 告诉框架“第 idx 条长什么样”。有了这两个，`DataLoader` 才知道怎么取数。\n2. **`__getitem__` 返回一条样本**：这里返回 `(特征, 标签)` 元组。注意它每次只取**一条**，分批的活儿交给 DataLoader。\n3. **`DataLoader(dataset, batch_size=4, shuffle=True)`**：\n   - `batch_size=4`：每次自动把 4 条样本**堆叠**成一个批，单条 `(1,)` 堆成 `(4,1)`；\n   - `shuffle=True`：每个 epoch 打乱顺序，避免模型记住数据排列，提升泛化。\n4. **遍历取 batch**：`for xb, yb in loader` 每次拿到一批。`xb.shape` 是 `(4,1)`，正好可以直接喂给 `nn.Linear(1, ...)`。在真实训练里，就是把例子3的循环改成“外层 epoch、内层遍历 loader 取 batch”。\n\n> 为什么不用普通 for 循环手动切片？因为 DataLoader 还能用 `num_workers` 开多进程并行读数据、自动 shuffle 和堆叠，又快又省心。10 条样本、batch=4，会分成 4+4+2 三批。",
       "tags": [
         "例子"
       ]
@@ -334,13 +333,6 @@
       "explanation": "解析：错误。带梯度追踪的张量不能直接`.numpy()`，需先`.detach()`从计算图中分离，如`x.detach().numpy()`，否则会报错。"
     },
     {
-      "type": "truefalse",
-      "difficulty": "easy",
-      "stem": "在PyTorch中，参与同一次运算的张量和模型可以分别放在CPU和GPU上而不报错。",
-      "answer": false,
-      "explanation": "解析：错误。参与同一运算的张量必须位于同一设备（device）上，否则会报设备不匹配的错误。需用`.to(device)`把它们统一到同一设备。"
-    },
-    {
       "type": "short",
       "difficulty": "medium",
       "stem": "请写出使用优化器的PyTorch标准训练循环（一个epoch内），并简述每一步的作用。",
@@ -357,15 +349,15 @@
     {
       "type": "single",
       "difficulty": "easy",
-      "stem": "运行以下代码，输出的形状是什么？\n```python\nrow = torch.tensor([1.0, 2.0, 3.0])    # (3,)\ncol = torch.tensor([[10.0], [20.0]])   # (2,1)\nprint((row + col).shape)\n```",
+      "stem": "下列哪个函数用于把一个 NumPy 数组转换成 PyTorch 张量？",
       "options": [
-        "torch.Size([3])",
-        "torch.Size([2, 1])",
-        "torch.Size([2, 3])",
-        "报错：形状不匹配"
+        "torch.to_numpy()",
+        "torch.from_numpy()",
+        "torch.as_tensor_np()",
+        "torch.numpy_tensor()"
       ],
-      "answer": "C",
-      "explanation": "解析：广播规则从最后一维往前对齐：(3,) 与 (2,1)，行向量沿行复制成 (2,3)，列向量沿列复制成 (2,3)，结果形状为 (2,3)。"
+      "answer": "B",
+      "explanation": "解析：`torch.from_numpy(x_np)` 把 NumPy 数组包装成张量，两者通常共享底层内存；反向用 `tensor.numpy()` 转回 NumPy。"
     },
     {
       "type": "single",

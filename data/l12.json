@@ -105,7 +105,7 @@
     },
     {
       "title": "经典网络:LeNet-5 / AlexNet / VGG",
-      "content": "**LeNet-5** [LeCun et al., 1998]：最早的实用 CNN，结构 [CONV1-POOL1-CONV2-POOL2-FC1-FC2]。卷积核 $5\\times5$、$S=1$；下采样(池化)$2\\times2$、$S=2$。用于手写数字识别。\n\n**AlexNet** [Krizhevsky et al., NIPS 2012]：首个深度学习 ImageNet 冠军(8 层)，开启深度学习浪潮。结构要点：CONV1 用 96 个 $11\\times11$、$S=4$ 大卷积核；随后 $3\\times3$ MaxPool($S=2$)、归一化层(NORM)、CONV2(256 个 $5\\times5$)、CONV3-5($3\\times3$)，最后 FC6/FC7 各 4096 神经元、FC8 输出 1000 类。亮点：ReLU、Dropout、数据增强、GPU 训练。\n\n**VGGNet** [Simonyan & Zisserman, 2015]：只用 **$3\\times3$ 小卷积核**($S=1$)和 $2\\times2$ MaxPool($S=2$)，把网络做得更深(16/19 层)。核心洞见：**堆叠 3 个 $3\\times3$ 卷积层的有效感受野等于 1 个 $7\\times7$ 卷积**，但更深、非线性更多、参数更少——3 个 $3\\times3$ 的参数 $3\\times(3^2C^2)=27C^2$ 远小于 $7\\times7$ 的 $49C^2$($C$ 为每层通道数)。",
+      "content": "**LeNet-5** [LeCun et al., 1998]：最早的实用 CNN，结构 [CONV1-POOL1-CONV2-POOL2-FC1-FC2]。卷积核 $5\\times5$、$S=1$；下采样(池化)$2\\times2$、$S=2$。用于手写数字识别。\n\n**AlexNet** [Krizhevsky et al., NIPS 2012]：首个深度学习 ImageNet 冠军(8 层)，开启深度学习浪潮。结构要点：CONV1 用 96 个 $11\\times11$、$S=4$ 大卷积核；随后 $3\\times3$ MaxPool($S=2$)、归一化层(NORM)、CONV2(256 个 $5\\times5$)、CONV3-5($3\\times3$)，最后 FC6/FC7 各 4096 神经元、FC8 输出 1000 类。它是首个深度学习在 ILSVRC 上夺冠的网络，标志着深度学习时代的开端。\n\n**VGGNet** [Simonyan & Zisserman, 2015]：只用 **$3\\times3$ 小卷积核**($S=1$)和 $2\\times2$ MaxPool($S=2$)，把网络做得更深(16/19 层)。核心洞见：**堆叠 3 个 $3\\times3$ 卷积层的有效感受野等于 1 个 $7\\times7$ 卷积**，但更深、非线性更多、参数更少——3 个 $3\\times3$ 的参数 $3\\times(3^2C^2)=27C^2$ 远小于 $7\\times7$ 的 $49C^2$($C$ 为每层通道数)。",
       "tags": [
         "LeNet",
         "AlexNet",
