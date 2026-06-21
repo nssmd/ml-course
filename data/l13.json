@@ -124,6 +124,16 @@
       ]
     },
     {
+      "title": "从注意力到纯 Transformer：自注意力与无卷积图像描述",
+      "content": "在带注意力的 Encoder-Decoder 基础上，PPT 进一步推进了\"用注意力取代卷积\"的思路，作为通向 Vision Transformer 的过渡。\n\n**1. CNN 特征上的自注意力(Self-Attention)**\n\n注意力不仅能用在\"解码词\"对\"图像区域\"上，**也可以直接施加在 CNN 提取的特征上**：把特征图的各个空间位置当作一组元素，让它们彼此做自注意力，从而在特征内部建立任意两个位置之间的长程依赖关系，而不再局限于卷积核的局部感受野。\n\n**2. 完全用 Transformer 做图像描述(Image Captioning using ONLY Transformers)**\n\n既然自注意力如此有效，自然引出一个大胆的问题:\n\n> \"也许我们根本不需要卷积？(Perhaps we don't need convolutions at all?)\"\n\n于是图像描述可以做成**纯 Transformer**:不再用 CNN 提特征，而是把图像本身也表示成一串 token 送入 Transformer，与文本统一处理。这一步直接催生了下一节的 **Vision Transformer (ViT)**。\n\n> 主线脉络:单一上下文向量(瓶颈)→ 解码时对图像区域做注意力 → 对 CNN 特征做自注意力 → 干脆抛弃卷积、全用 Transformer。",
+      "tags": [
+        "自注意力",
+        "图像描述",
+        "Transformer",
+        "过渡"
+      ]
+    },
+    {
       "title": "视觉 Transformer(ViT)",
       "content": "**ViT (Vision Transformer, Dosovitskiy et al., 2020)**——\"An Image is Worth 16×16 Words\"——主张**\"也许根本不需要卷积\"**，直接用 Transformer 做图像识别。\n\n核心流程：\n1. 把图像切成固定大小的 **patch**(如 16×16)，每个 patch 展平并线性投影成一个 token(\"图像版的词\")；\n2. 加上**位置编码(positional encoding)** 保留空间信息；\n3. 通常前置一个可学习的 `[CLS]` token；\n4. 送入标准 **Transformer Encoder**(多头自注意力 + MLP)；\n5. 用 `[CLS]` 的输出做分类。\n\n**ViT vs ResNet 的关键经验：**\n- ViT 缺少 CNN 的**归纳偏置(局部性、平移不变性)**，**在中小数据集上不如 CNN**；\n- 但在**超大规模数据**预训练时，ViT 能超越 ResNet，且扩展性(scaling)更好。\n\n> ViT 把\"图像\"重新表述为\"patch 序列\"，使图像与语言能共用同一套 Transformer 范式，为后续多模态大模型铺平道路。检测领域亦有纯 Transformer 方案 **DETR**(Carion et al., ECCV 2020)，端到端直接预测框集合。",
       "tags": [
@@ -346,6 +356,19 @@
       "stem": "CLIP 在推理时对一张新图片做分类，必须先在目标数据集上重新训练分类头。",
       "answer": false,
       "explanation": "错误。CLIP 支持零样本(zero-shot)推理：根据类别标签构造文字描述，将图片与各候选文本编码后取相似度最高者作为预测，无需在目标数据上重新训练。"
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "图像描述从\"基础 Encoder-Decoder\"演进到\"纯 Transformer(无卷积)\"，下列对这一过渡的描述正确的是？",
+      "options": [
+        "始终依赖 CNN 提取空间特征，只是把 RNN 解码器换成 Transformer",
+        "先用注意力让解码器关注图像区域，再把自注意力施加到 CNN 特征上，最终提出\"也许根本不需要卷积\"而走向纯 Transformer",
+        "直接放弃注意力机制，改用更深的卷积网络",
+        "把图像压缩成单一上下文向量后用 Transformer 解码"
+      ],
+      "answer": "B",
+      "explanation": "PPT 的主线是:单一上下文向量造成瓶颈 → 解码时对图像区域做注意力(Show, Attend and Tell)→ 对 CNN 特征做自注意力 → 提出\"也许根本不需要卷积\"，把图像也表示成 token 全用 Transformer 处理，直接催生 ViT。"
     },
     {
       "type": "short",

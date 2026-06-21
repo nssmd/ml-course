@@ -96,7 +96,7 @@
     },
     {
       "title": "Softmax 回归：损失与梯度",
-      "content": "**Softmax 回归(Softmax Regression)** 用 Softmax 估计各类后验：\n$$y_i=\\frac{\\exp[w_i^Tx+w_{i0}]}{\\sum_{j=1}^{K}\\exp[w_j^Tx+w_{j0}]},\\quad i=1,\\dots,K$$\n测试时选 $y_i=\\max\\{y_1,\\dots,y_K\\}$ 的类 $C_i$。\n\n**损失**：标签为 **one-hot 向量** $r=(r_1,\\dots,r_K)$($r_i=1$ 若 $x\\in C_i$)。交叉熵损失：\n$$L_{CE}(y,r)=-\\sum_{i=1}^{K}r_i\\log y_i=-r^T(\\log y)$$\n由于 $r$ 是 one-hot，实际只有真实类那一项 $-\\log y_{真实类}$ 起作用。\n\n**梯度**。利用 Softmax 导数 $\\frac{\\partial y_i}{\\partial a_k}=y_i(\\delta_{ik}-y_k)$ 与约束 $\\sum_i r_i=1$，可推出与逻辑回归同样优美的形式：\n$$\\frac{\\partial L}{\\partial w_i}=\\sum_\\ell\\big(y_i^{(\\ell)}-r_i^{(\\ell)}\\big)x^{(\\ell)},\\qquad \\Delta w_{ij}\\mathrel{+}=(r_i^{(\\ell)}-y_i^{(\\ell)})x_j^{(\\ell)}$$\n\n> 二分类逻辑回归是 Softmax 回归在 $K=2$ 时的特例；二者梯度都是\"(预测概率 − 真实标签) × 输入\"。",
+      "content": "**Softmax 回归(Softmax Regression)** 用 Softmax 估计各类后验：\n$$y_i=\\frac{\\exp[w_i^Tx+w_{i0}]}{\\sum_{j=1}^{K}\\exp[w_j^Tx+w_{j0}]},\\quad i=1,\\dots,K$$\n测试时选 $y_i=\\max\\{y_1,\\dots,y_K\\}$ 的类 $C_i$。\n\n**损失**：标签为 **one-hot 向量** $r=(r_1,\\dots,r_K)$($r_i=1$ 若 $x\\in C_i$)。交叉熵损失：\n$$L_{CE}(y,r)=-\\sum_{i=1}^{K}r_i\\log y_i=-r^T(\\log y)$$\n由于 $r$ 是 one-hot，实际只有真实类那一项 $-\\log y_{真实类}$ 起作用。\n\n**梯度**。利用 Softmax 导数 $\\frac{\\partial y_i}{\\partial a_k}=y_i(\\delta_{ik}-y_k)$ 与约束 $\\sum_i r_i=1$，可推出与逻辑回归同样优美的形式：\n$$\\frac{\\partial L}{\\partial w_i}=\\sum_\\ell\\big(y_i^{(\\ell)}-r_i^{(\\ell)}\\big)x^{(\\ell)},\\qquad \\Delta w_{ij}\\mathrel{+}=(r_i^{(\\ell)}-y_i^{(\\ell)})x_j^{(\\ell)}$$\n\n**梯度下降算法(伪代码)**：与逻辑回归同构，只是把每个样本要更新的权重从一组 $w_j$ 变成 $K$ 组 $w_{ij}$($i=1,\\dots,K$)：\n\n```\n初始化 w_ij ← rand(-0.01, 0.01)   # i=1..K, j=0..d\nrepeat\n  所有 Δw_ij ← 0\n  for 每个样本 (x, r):\n    for i = 1..K:  a_i ← Σ_j w_ij x_j        # 各类 logit\n    for i = 1..K:  y_i ← exp(a_i)/Σ_k exp(a_k) # softmax\n    for i = 1..K, j = 0..d:\n      Δw_ij ← Δw_ij + (r_i - y_i) x_j\n  for i = 1..K, j = 0..d:\n    w_ij ← w_ij + η Δw_ij\nuntil 收敛\n```\n\n> 二分类逻辑回归是 Softmax 回归在 $K=2$ 时的特例；二者梯度都是\"(预测概率 − 真实标签) × 输入\"，伪代码也只差一层对类别 $i$ 的循环。",
       "tags": [
         "Softmax回归",
         "交叉熵",
@@ -131,6 +131,23 @@
       "content": "继续例题1/2 的设置，假设真实标签 $r=1$（该生及格），我们来**手动做一次梯度下降**，看看参数怎么被更新。取学习率 $\\eta=0.1$。\n\n已知：$x=(2,1)$，当前 $w=(0.8,-0.5)$，$b=0.3$，预测 $y=0.802$，$r=1$。\n\n---\n\n**第1步：算「误差」$(r-y)$。**\n\n逻辑回归梯度有一个极其简洁的形式（课件已推导）：\n$$\\frac{\\partial L}{\\partial w_j}=-(r-y)\\,x_j$$\n所以更新公式（沿负梯度方向）为：\n$$w_j\\leftarrow w_j-\\eta\\frac{\\partial L}{\\partial w_j}=w_j+\\eta\\,(r-y)\\,x_j$$\n\n先算误差这个共用因子：\n$$r-y=1-0.802=0.198$$\n\n> 直觉：$(r-y)$ 是「真实 − 预测」。这里为正（0.198），说明模型预测的概率还**偏低**了一点（真相是 100% 的 C1，模型只给了 80.2%），所以要把参数往「更倾向 C1」的方向推一点。\n\n**第2步：更新每个权重 $w_j$。**\n\n套公式 $w_j\\leftarrow w_j+\\eta(r-y)x_j$，其中 $\\eta(r-y)=0.1\\times0.198=0.0198$：\n\n- 更新 $w_1$（对应 $x_1=2$）：\n$$w_1=0.8+0.0198\\times 2=0.8+0.0396=0.8396$$\n- 更新 $w_2$（对应 $x_2=1$）：\n$$w_2=-0.5+0.0198\\times 1=-0.5+0.0198=-0.4802$$\n\n**第3步：更新偏置 $b$（相当于 $x_0=1$ 的权重）。**\n$$b=0.3+0.0198\\times 1=0.3198$$\n\n---\n\n**更新后参数：** $w=(0.8396,\\,-0.4802)$，$b=0.3198$。\n\n**验证有没有变好？** 用新参数重算这条样本：\n$$z_{\\text{新}}=0.8396\\times2-0.4802\\times1+0.3198=1.4188$$\n$$y_{\\text{新}}=\\sigma(1.4188)\\approx 0.805$$\n\n> 概率从 0.802 升到了 0.805，更靠近真实标签 1 了！说明这一步更新方向正确。注意 $w_1$ 增加得最多（因为它对应的 $x_1=2$ 最大）——**输入越大的特征，权重调整越多**，这正是梯度里乘了 $x_j$ 的含义。反复迭代所有样本，损失就会逐步下降直到收敛。",
       "tags": [
         "例题"
+      ]
+    },
+    {
+      "type": "single",
+      "difficulty": "medium",
+      "stem": "Softmax 回归的梯度下降算法相比二分类逻辑回归算法，结构上的主要区别是？",
+      "options": [
+        "需要对 $K$ 个类别各维护一组权重 $w_{ij}$，每个样本要先算 $K$ 个 logit 再做 softmax 归一化",
+        "不需要迭代，可一步求出闭式解",
+        "用 Sigmoid 替代 Softmax 来归一化",
+        "权重更新不再依赖输入 $x_j$"
+      ],
+      "answer": "A",
+      "explanation": "Softmax 回归算法与逻辑回归同构，但要为每一类 $i=1,\\dots,K$ 维护一组权重 $w_{ij}$：每个样本先对各类算 logit $a_i=\\sum_j w_{ij}x_j$，再用 softmax 归一化得 $y_i$，最后按 $\\Delta w_{ij}\\mathrel{+}=(r_i-y_i)x_j$ 累加更新。它仍是迭代的梯度下降，没有闭式解；归一化用的是 Softmax 而非 Sigmoid。",
+      "tags": [
+        "Softmax回归",
+        "算法"
       ]
     }
   ],

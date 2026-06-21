@@ -23,6 +23,15 @@
       ]
     },
     {
+      "title": "安装与Hello PyTorch",
+      "content": "PyTorch可从官网 https://pytorch.org 按系统/CUDA版本选择安装命令，或直接在Colab中使用（无需本地配置）。\n\n装好后，最简单的“Hello PyTorch”就是导入并打印版本号，确认安装成功：\n```python\n>>> import torch\n>>> print(torch.__version__)\n1.2.0\n>>> # Happy!!\n```\n\n要点：\n- `import torch`：导入PyTorch主包。\n- `torch.__version__`：查看当前安装的PyTorch版本，是排查环境问题（如版本不匹配）的第一步。",
+      "tags": [
+        "安装",
+        "import",
+        "version"
+      ]
+    },
+    {
       "title": "Tensor张量：基本数据结构",
       "content": "**Tensor**是PyTorch中最基本的数据结构（类似NumPy的`ndarray`，但能在GPU上运算并参与自动求导）。\n\n创建张量：\n```python\nimport torch\n\n# 从Python列表创建，可指定dtype\nx = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float)\nW = torch.tensor([[0.1, 0.2, 0.3],\n                  [0.4, 0.1, 0.7],\n                  [0.8, 0.1, 0.2]])\n\n# 创建全0张量（指定形状与dtype）\nr = torch.zeros([1, 3], dtype=torch.long)\nrnd = torch.rand(2, 3)   # [0,1)均匀分布\n```\n\nTensor与NumPy互转（共享内存，零拷贝）：\n```python\nimport numpy as np\n\nx_np = np.array([0.1, 0.2, 0.3])\nx_torch = torch.from_numpy(x_np)   # numpy -> tensor\nback = x_torch.numpy()             # tensor -> numpy\n```\n\n> 常用属性：`x.shape`/`x.size()`查看形状，`x.dtype`查看类型，`x.view(-1, d)`改变形状（MLP预测时即用其把数据整理成`(样本数, d)`）。",
       "tags": [
@@ -166,6 +175,19 @@
       ],
       "answer": "B",
       "explanation": "解析：Tensor是PyTorch的基本数据结构，类似NumPy的ndarray，但支持GPU加速和自动求导。DataFrame是pandas的结构，与PyTorch无关。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "导入PyTorch后，想确认安装成功并查看当前版本，应打印下列哪个？",
+      "options": [
+        "torch.version()",
+        "torch.__version__",
+        "torch.get_version()",
+        "torch.info()"
+      ],
+      "answer": "B",
+      "explanation": "解析：`import torch` 后用 `print(torch.__version__)` 查看版本号，这是“Hello PyTorch”确认环境的第一步。`__version__` 是属性而非函数，不带括号。"
     },
     {
       "type": "single",

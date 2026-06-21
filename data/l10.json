@@ -24,6 +24,15 @@
       ]
     },
     {
+      "title": "Seq2Seq的应用场景",
+      "content": "Seq2Seq(编码器-解码器)框架适用于各类\"输入一个序列、输出另一个序列\"的任务：\n\n- **机器翻译(Translation)**：中文→英文，编码器、解码器都是RNN。\n- **对话生成(Conversation)**：上文→回复，例如开放域闲聊机器人(Open-Domain Dialog Generation)。\n- **图像描述(Image Captioning)**：图像→文字描述。**注意此时编码器是CNN**(用CNN提取图像特征作为上下文)，解码器仍是RNN生成文字。\n\n> 关键观察：编码器的具体网络类型取决于**输入模态**——文本/语音用RNN，图像用CNN；而解码器负责自回归生成目标序列。这说明Seq2Seq是一个通用的\"序列(或表征)→序列\"范式，并不局限于纯文本。",
+      "tags": [
+        "Seq2Seq",
+        "应用",
+        "图像描述"
+      ]
+    },
+    {
       "title": "Seq2Seq的训练目标",
       "content": "给定数据集 $D=\\{(x^{(1)},y^{(1)}),\\dots,(x^{(N)},y^{(N)})\\}$，训练通过**最小化交叉熵损失**(即最大化目标序列的对数似然)进行。\n\n单个样本损失(对每个时间步的预测取负对数似然求和)：\n$$\\ell(\\theta\\mid x,y)=-\\sum_{t=1}^{T_y}\\log p_\\theta(y_t\\mid y_1,\\dots,y_{t-1},x)$$\n\n整体损失：\n$$L(\\theta\\mid D)=-\\frac{1}{N}\\sum_{l=1}^{N}\\ell(\\theta\\mid x^{(l)},y^{(l)})$$\n\n- 每个时间步输出词表上的概率分布，与真实词的one-hot标签算交叉熵。\n- 优化算法用**梯度下降**(及其变体)。",
       "tags": [
@@ -227,6 +236,19 @@
       ],
       "answer": "B",
       "explanation": "经典RNN编解码器只用最后一个隐含状态 $c=h_{T_x}$ 表示整个源序列，长序列信息被压缩进固定向量造成瓶颈，性能随长度增大而下降。注意力机制(动态上下文向量)正是为缓解此问题而生。"
+    },
+    {
+      "type": "single",
+      "difficulty": "easy",
+      "stem": "在图像描述(Image Captioning)这一Seq2Seq任务中，编码器通常采用哪种网络？",
+      "options": [
+        "RNN",
+        "CNN",
+        "Transformer解码器",
+        "不需要编码器"
+      ],
+      "answer": "B",
+      "explanation": "图像描述的输入是图像，需用CNN提取图像特征作为上下文向量，再由RNN解码器生成文字。这说明编码器类型取决于输入模态(文本/语音用RNN，图像用CNN)，Seq2Seq是通用的\"表征→序列\"范式。"
     },
     {
       "type": "single",
